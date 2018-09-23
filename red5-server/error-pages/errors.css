@@ -1,0 +1,15 @@
+body {
+  font-family: sans-serif;
+  color: #000000;
+}
+
+body > div {
+  width: 75vw;
+  margin: auto;
+}
+
+pre {
+  padding: 20px;
+  background-color: #eeeeee;
+  font-family: monospace;
+}
