@@ -6,6 +6,7 @@ export class Response {
 
   private _filePath: string | null = null
   private _templatePath: string | null = null
+  private _templateData: {} | null = null
   // private _media: MediaFile | null = null
   private _buffer: Buffer | null = null
 
@@ -19,6 +20,7 @@ export class Response {
   public get contentLength(): number { return this._length }
   public get filePath(): string | null { return this._filePath }
   public get templatePath(): string | null { return this._templatePath }
+  public get templateData(): {} | null { return this._templateData }
   public get buffer(): Buffer | null { return this._buffer }
 
   public setContentLength(length: number) {
@@ -58,8 +60,9 @@ export class Response {
     return false
   }
 
-  public render(path: string, code = 200) {
+  public render(path: string, data: {} = {}, code = 200) {
     this._templatePath = path
+    this._templateData = data
     return this.setCode(code)
   }
 

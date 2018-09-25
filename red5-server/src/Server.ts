@@ -5,9 +5,9 @@ import * as mime from 'mime-types'
 import { ReadStream, readFileSync } from 'fs'
 import * as path from 'path'
 import * as url from 'url'
-import { Client, Router, Storage, StorageConfig, Response, Session } from 'red5'
+import { Client, Router, Storage, StorageConfig, Response, Session, Route } from 'red5'
 import { Template } from './Template'
-import { configPath, applicationPath } from '.'
+import * as helpers from './helper'
 
 export interface RouterSettings {
   controllers: string
@@ -27,13 +27,20 @@ export interface AppSettings {
   chunkSize?: number
 }
 
+export interface Connection {
+  id: string
+  client: Client
+}
+
 export class Server {
   private static instance: http.Server | https.Server
   public static app: AppSettings
 
+  public static connections: Client[] = []
+
   public static start() {
     // Load the application configuration
-    this.app = require(applicationPath('config/app')) as AppSettings
+    this.app = require(helpers.applicationPath('config/app')) as AppSettings
 
     // Create the server
     this.instance = !!this.app.https ?
@@ -48,10 +55,10 @@ export class Server {
       console.log('Red5 is now listening on port ' + this.app.port)
 
       // Config locations
-      let views = require(configPath('view')) as ViewSettings
-      let storage = require(configPath('storage')) as StorageConfig
-      let route = require(configPath('route')) as RouterSettings
-      let envPath = applicationPath('.env')
+      let views = require(helpers.configPath('view')) as ViewSettings
+      let storage = require(helpers.configPath('storage')) as StorageConfig
+      let route = require(helpers.configPath('route')) as RouterSettings
+      let envPath = helpers.applicationPath('.env')
       let env = require('dotenv').config({ path: envPath })
 
       // Setup dependencies
@@ -60,20 +67,43 @@ export class Server {
       Storage.setConfig(storage)
 
       // Log configuration settings
-      console.log('-- Start Config Settings -----')
-      console.log(`   environment: "${!env.error ? envPath : '.env file not found!'}"`)
-      console.log(`   controllers: "${route.controllers}"`)
-      console.log(`   views: "${views.path}"`)
-      console.log(`   storage default: "${storage.default}"`)
-      console.log(`   storage cloud: "${storage.cloud || ''}"`)
-      console.log(`   disks:`)
-      for (let i in storage.disks) console.log(`     ${i}: "${storage.disks[i].root || ''}"`)
-      console.log(`   routes: "${route.routes}"`)
-      console.log('-- End Config Settings -----')
+      console.log('--- Start Config Settings -----')
+      console.log(`    environment: "${!env.error ? envPath : '.env file not found!'}"`)
+      console.log(`    controllers: "${route.controllers}"`)
+      console.log(`    views: "${views.path}"`)
+      console.log(`    storage default: "${storage.default}"`)
+      console.log(`    storage cloud: "${storage.cloud || ''}"`)
+      console.log(`    disks:`)
+      for (let i in storage.disks) console.log(`      ${i}: "${storage.disks[i].root || ''}"`)
+      console.log(`    routes: "${route.routes}"`)
+      console.log('--- End Config Settings -----')
       try {
-        console.log(`-- Start Route Setup -----`)
+        console.log(`--- Start Route Setup -----`)
         require(route.routes)
-        console.log(`-- End Routes Setup -----`)
+        // Get the longest route
+        let longestRoute = Router.routes.reduce((num, val) => {
+          let len = val.pathAlias instanceof RegExp ? `RegExp(${val.pathAlias.source})`.length : val.pathAlias.length
+          return len > num ? len : num
+        }, 'Route'.length)
+        // Get the longest controller
+        let longestController = Router.routes.reduce((num, val) => {
+          let len = typeof val.callback == 'string' ? val.callback.length : 'Closure'.length
+          return len > num ? len : num
+        }, 'Controller'.length)
+        // Get the longest name
+        let longestName = Router.routes.reduce((num, val) => {
+          let len = val.routeName.length || 0
+          return len > num ? len : num
+        }, 'Name'.length)
+        console.log(`    ${'Method'.padEnd(10)}${'Route'.padEnd(longestRoute + 3)}${'Controller'.padEnd(longestController + 3)}${'Name'}`)
+        console.log(`${''.padEnd(longestController + longestRoute + longestName + 20, '-')}`)
+        Router.routes.forEach(route => {
+          let method = route.method.toUpperCase()
+          let routeAlias = route.pathAlias instanceof RegExp ? `RegExp(${route.pathAlias.source})` : route.pathAlias
+          let routeCtrl = typeof route.callback == 'string' ? `${route.callback}` : 'Closure'
+          console.log(`    ${method.padEnd(10)}${routeAlias.padEnd(longestRoute + 3)}${routeCtrl.padEnd(longestController + 3)}${route.routeName}`)
+        })
+        console.log(`--- End Routes Setup -----`)
       } catch (e) {
         console.error(`Could not load routes from "${route.routes}":\n  - ${e.message}`)
       }
@@ -101,16 +131,21 @@ export class Server {
     }).on('end', async (data: Buffer) => {
       if (data) body += data.toString('binary')
       let client = new Client(req, body)
+      client.setHelpers(helpers)
+      this.connections.push(client)
+      let idx = this.connections.indexOf(client)
 
       // Attempt to send the file from the public folder
       if (urlInfo.pathname) {
-        let filePath = path.join(applicationPath('public'), urlInfo.pathname)
+        let filePath = path.join(helpers.applicationPath('public'), urlInfo.pathname)
         // let filePath = path.join(path.join(applicationRoot(), 'public', urlInfo.pathname))
         try {
           let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
           if (stats.isFile()) {
             client.response.setFile(filePath).setContentLength(stats.size)
-            return this.send(client, req, res)
+            await this.send(client, req, res)
+            idx > -1 && this.connections.splice(idx, 1)
+            return
           }
         } catch (e) { }
       }
@@ -119,9 +154,10 @@ export class Server {
       // await client.session.close()
       if (!resp) {
         this.getErrorPage(client, 400)
-        this.send(client, req, res)
+        await this.send(client, req, res)
       }
-      else this.send(client, req, res)
+      else await this.send(client, req, res)
+      idx > -1 && this.connections.splice(idx, 1)
     })
   }
 
@@ -150,7 +186,7 @@ export class Server {
     return client.response.setCode(code).setBody(file)
   }
 
-  private static send(client: Client, req: http.IncomingMessage, res: http.ServerResponse) {
+  private static async send(client: Client, req: http.IncomingMessage, res: http.ServerResponse) {
     let fileSize = client.response.contentLength
     let start = 0, end = fileSize - 1 < start ? start : fileSize - 1
     // If the file is larger than 10,000,000 bytes
@@ -183,7 +219,7 @@ export class Server {
         .on('error', err => res.end(err))
     } else {
       if (client.response.templatePath) {
-        res.write(Template.render(client.response.templatePath))
+        res.write(await Template.render(client))
       } else if (client.response.buffer) {
         res.write(client.response.buffer)
       } else {

@@ -6,6 +6,7 @@ import { Client } from './Client';
 export class Route {
 
   private _name: string = ''
+  private _paramConstraints: { [key: string]: RegExp } = {}
   private _path: UrlWithStringQuery = { query: '' }
   public routeOptions: RouterOptions = {}
   public groupOptions: RouterOptions[] = []
@@ -25,8 +26,10 @@ export class Route {
       this.pathAlias = this.unixJoin(this.pathAlias).replace(/\/$/g, '')
       if (!this.pathAlias.startsWith('/')) this.pathAlias = '/' + this.pathAlias
     }
-    console.log(`   ${(<string>method.toUpperCase())} ${this.pathAlias instanceof RegExp ? `RegExp(${this.pathAlias.source})` : this.pathAlias}${typeof callback == 'string' ? ` -> ${callback}` : ''}`)
+    // console.log(`   ${(<string>method.toUpperCase())} ${this.pathAlias instanceof RegExp ? `RegExp(${this.pathAlias.source})` : this.pathAlias}${typeof callback == 'string' ? ` -> ${callback}` : ''}`)
   }
+
+  public get constraints() { return this._paramConstraints }
 
   public get params(): { [key: string]: string } {
     let returnParams: { [key: string]: string } = {}
@@ -55,6 +58,10 @@ export class Route {
     if (Router.findByName(name)) throw new Error('Route name "' + name + '" already exists')
     this._name = name
     return this
+  }
+
+  public constrain(params: { [key: string]: RegExp }) {
+    this._paramConstraints = params
   }
 
   public is(name: string | RegExp) {

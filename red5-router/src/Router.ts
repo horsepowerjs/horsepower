@@ -31,7 +31,19 @@ export class Router {
     // Try to find the route
     let theRoute = this._find(route, <RequestMethod>client.method || 'get')
 
-    if (theRoute) client.setRoute(theRoute)
+    if (theRoute) {
+      client.setRoute(theRoute)
+
+      // Validate the constraints
+      if (Object.keys(theRoute.constraints).length > 0) {
+        let params = theRoute.params
+        for (let i in theRoute.constraints) {
+          if (!theRoute.constraints[i].test(params[i])) {
+            return null
+          }
+        }
+      }
+    }
     let callback
 
     // Execute the middleware that is attached to the route
@@ -428,6 +440,54 @@ export class Router {
     return this.createRoute('any', ...args)
   }
 
+  /**
+    * For matching 2 or more method types that go to "/" or the prefix root if in a group
+    *
+    * @static
+    * @param {RequestMethod[]} types The types to match
+    * @param {RouteCallback} controller The controller to use
+    * @returns {Route}
+    * @memberof Router
+    */
+  public static match(types: RequestMethod[], controller: RouteCallback): void
+
+  /**
+   * For matching 2 or more method types without options
+   *
+   * @static
+   * @param {RequestMethod[]} types The types to match
+   * @param {(string | RegExp)} routePath The route path to watch
+   * @param {RouteCallback} controller The controller to use
+   * @memberof Router
+   */
+  public static match(types: RequestMethod[], routePath: string | RegExp, controller: RouteCallback): void
+
+  /**
+   * For matching 2 or more method types with options
+   *
+   * @static
+   * @param {RequestMethod[]} types The types to match
+   * @param {(string | RegExp)} routePath The route path to watch
+   * @param {RouterOptions} options The options for the route
+   * @param {RouteCallback} controller The controller to use
+   * @memberof Router
+   */
+  public static match(types: RequestMethod[], routePath: string | RegExp, options: RouterOptions, controller: RouteCallback): void
+  public static match(types: RequestMethod[], ...args: any[]): void {
+    types.forEach(type => this.createRoute(type, ...args))
+  }
+
+  public static resource(resourceName: string, controller: string) {
+    let name = controller.replace(/\//g, '.')
+    this.get(`/${resourceName}`, `${controller}@main`).name(`${name}.main`)
+    this.get(`/${resourceName}/create`, `${controller}@create`).name(`${name}.create`)
+    this.post(`/${resourceName}`, `${controller}@store`).name(`${name}.store`)
+    this.get(`/${resourceName}/:id`, `${controller}@show`).name(`${name}.show`)
+    this.get(`/${resourceName}/:id/edit`, `${controller}@edit`).name(`${name}.edit`)
+    this.put(`/${resourceName}/:id`, `${controller}@update`).name(`${name}.update`)
+    this.delete(`/${resourceName}/:id`, `${controller}@destroy`).name(`${name}.destroy`)
+  }
+
   private static createRoute(method: RequestMethod, ...args: any[]) {
     // Get the route callback
     let callback = null
@@ -444,7 +504,7 @@ export class Router {
     if (routePath instanceof RegExp) {
       r = new Route(routePath, method, callback)
     } else {
-      let pathAlias = path.join(...this.groupPath, routePath)
+      let pathAlias = path.join(...this.groupPath, routePath).replace(/\\/g, '/')
       let isAlreadyRoute = !!Router.findByAlias(method, pathAlias)
       if (isAlreadyRoute) throw new Error(`Path already exists: "${String(pathAlias)}"`)
       r = new Route(pathAlias, method, callback)
@@ -518,6 +578,10 @@ export class Router {
       theRoute.setPath(route)
     }
     return theRoute
+  }
+
+  private static _constrain(expression: RegExp, value: string) {
+    return expression.test(value)
   }
 
 }

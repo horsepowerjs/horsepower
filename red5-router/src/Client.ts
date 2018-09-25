@@ -14,6 +14,8 @@ export interface FileType {
   tmpFilename: string
 }
 
+export declare type Helpers = { [key: string]: Function }
+
 export class Client {
 
   public readonly method: RequestMethod
@@ -24,6 +26,8 @@ export class Client {
   private readonly _files: FileType[] = []
   private readonly _headers: IncomingHttpHeaders
   private readonly _response: Response
+  private _helpers: Helpers = {}
+  private _id: string
 
   public route!: Route
 
@@ -32,6 +36,7 @@ export class Client {
     this.ajax = req.headers['x-requested-with'] == 'XMLHttpRequest'
     this._response = new Response(this)
     this._headers = req.headers
+    this._id = (Math.random() * 10e15).toString(36)
 
     let contentType = this.headers.get<string>('content-type')
     if (contentType.includes('boundary=')) {
@@ -131,7 +136,14 @@ export class Client {
     }
   }
 
+  public get helpers(): Helpers { return this._helpers }
+  public get id(): string { return this._id }
+
   public setRoute(route: Route) {
     this.route = route
+  }
+
+  public setHelpers(helpers: { [key: string]: Function }) {
+    this._helpers = helpers
   }
 }
