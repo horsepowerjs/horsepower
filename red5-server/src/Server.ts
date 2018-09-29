@@ -2,12 +2,14 @@ import * as http from 'http'
 import * as https from 'https'
 import * as fs from 'fs'
 import * as mime from 'mime-types'
-import { ReadStream, readFileSync } from 'fs'
 import * as path from 'path'
 import * as url from 'url'
-import { Client, Router, Storage, StorageConfig, Response, Session, Route } from 'red5'
+import { Router, Storage, StorageConfig, Route } from 'red5'
 import { Template } from './Template'
 import * as helpers from './helper'
+import { Middleware } from './Middleware'
+import { Response } from './Response'
+import { Client } from './Client'
 
 export interface RouterSettings {
   controllers: string
@@ -35,8 +37,6 @@ export interface Connection {
 export class Server {
   private static instance: http.Server | https.Server
   public static app: AppSettings
-
-  public static connections: Client[] = []
 
   public static start() {
     // Load the application configuration
@@ -131,33 +131,33 @@ export class Server {
     }).on('end', async (data: Buffer) => {
       if (data) body += data.toString('binary')
       let client = new Client(req, body)
-      client.setHelpers(helpers)
-      this.connections.push(client)
-      let idx = this.connections.indexOf(client)
 
       // Attempt to send the file from the public folder
       if (urlInfo.pathname) {
         let filePath = path.join(helpers.applicationPath('public'), urlInfo.pathname)
-        // let filePath = path.join(path.join(applicationRoot(), 'public', urlInfo.pathname))
         try {
           let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
           if (stats.isFile()) {
             client.response.setFile(filePath).setContentLength(stats.size)
-            await this.send(client, req, res)
-            idx > -1 && this.connections.splice(idx, 1)
-            return
+            return await this.send(client, req, res)
           }
         } catch (e) { }
       }
 
-      let resp = await Router.route(urlInfo, client)
+      let routeInfo = await Router.route(urlInfo, client.method)
+      let resp: Response | null = null
+      if (routeInfo && routeInfo.route && routeInfo.callback) {
+        client.setRoute(routeInfo.route)
+        await Middleware.run(routeInfo.route, client)
+        resp = await routeInfo.callback(client)
+      }
+
       // await client.session.close()
       if (!resp) {
         this.getErrorPage(client, 400)
         await this.send(client, req, res)
       }
       else await this.send(client, req, res)
-      idx > -1 && this.connections.splice(idx, 1)
     })
   }
 
@@ -169,7 +169,7 @@ export class Server {
     // Read the file
     let filePath = path.join(__dirname, '../error-pages/', code + '.html')
     let fileUri = path.parse(filePath)
-    let file = readFileSync(filePath).toString()
+    let file = fs.readFileSync(filePath).toString()
     // Replace static placeholders
     file = file.replace(/\$\{(.+)\}/g, (a: string, b: string) => data[b] || '')
     // Replace executable placeholders
@@ -178,7 +178,7 @@ export class Server {
       if (b.startsWith('include(')) {
         return b.replace(/'|"/g, '').replace(/\include\((.+)\);?/i, (a: string, b: string) => {
           let inclFilePath = path.resolve(fileUri.dir, b)
-          return readFileSync(inclFilePath).toString()
+          return fs.readFileSync(inclFilePath).toString()
         })
       }
       return ''
@@ -213,7 +213,7 @@ export class Server {
       return res.end()
     }
     if (client.response.filePath) {
-      let stream: ReadStream = fs.createReadStream(client.response.filePath, { start, end })
+      let stream: fs.ReadStream = fs.createReadStream(client.response.filePath, { start, end })
         .on('open', () => stream.pipe(<any>res))
         .on('close', () => res.end())
         .on('error', err => res.end(err))

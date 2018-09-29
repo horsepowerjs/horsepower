@@ -1,7 +1,6 @@
 import { UrlWithStringQuery } from 'url'
 import * as path from 'path'
 import { RouterOptions, RequestMethod, Router } from './Router';
-import { Client } from './Client';
 
 export class Route {
 
@@ -20,7 +19,7 @@ export class Route {
   public constructor(
     public readonly pathAlias: string | RegExp,
     public readonly method: RequestMethod,
-    public readonly callback: string | ((client: Client) => void | Response)
+    public readonly callback: string | Function//((client: Client) => void | Response)
   ) {
     if (typeof this.pathAlias == 'string') {
       this.pathAlias = this.unixJoin(this.pathAlias).replace(/\/$/g, '')

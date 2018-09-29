@@ -1,8 +1,6 @@
 import { UrlWithStringQuery } from 'url'
 import * as path from 'path'
-import { Client } from './Client'
 import { Route } from './Route'
-import { Response } from './Response';
 
 export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'any'
 
@@ -10,7 +8,12 @@ export interface RouterOptions {
   middleware?: Function[]
 }
 
-export type RouteCallback = string | ((client: Client) => void | Response | Promise<Response> | Promise<void>)
+export type RouteCallback = string | Function | Promise<Function | string | void>
+
+declare type RouteInfo = Promise<{
+  route: Route | undefined
+  callback: Function | undefined
+} | null>
 
 export class Router {
 
@@ -27,12 +30,12 @@ export class Router {
     this.controllerRoot = root
   }
 
-  public static async route(route: UrlWithStringQuery, client: Client): Promise<Response | null> {
+  public static async route(route: UrlWithStringQuery, method: RequestMethod /* , client: Client */): RouteInfo {
     // Try to find the route
-    let theRoute = this._find(route, <RequestMethod>client.method || 'get')
+    let theRoute = this._find(route, method || 'get')
 
     if (theRoute) {
-      client.setRoute(theRoute)
+      // client.setRoute(theRoute)
 
       // Validate the constraints
       if (Object.keys(theRoute.constraints).length > 0) {
@@ -45,21 +48,6 @@ export class Router {
       }
     }
     let callback
-
-    // Execute the middleware that is attached to the route
-    if (theRoute) {
-      // Test the group middleware
-      for (let c of theRoute.groupOptions) {
-        if (!c.middleware) continue
-        let result = await this._runMiddleware(c.middleware, client)
-        if (result instanceof Response) return result
-      }
-      // Test the route specific middleware
-      if (theRoute.routeOptions.middleware) {
-        let result = await this._runMiddleware(theRoute.routeOptions.middleware, client)
-        if (result instanceof Response) return result
-      }
-    }
 
     // If the callback is a string load the module from the controllers
     // Then get the function in the file
@@ -77,7 +65,8 @@ export class Router {
     } catch (e) { }
 
     // If a valid route was found run the callback, otherwise send a 404
-    return callback ? await callback(client) : null
+    return { route: theRoute, callback: callback || null }
+    // return callback ? await callback(client) : null
   }
 
   /**
@@ -111,9 +100,9 @@ export class Router {
   }
 
   /**
-   * For "GET" http requests that go to "/" or the prefix root if in a group
+   * For `GET` http requests that go to "/" or the prefix root if in a group
    *
-   * REST: Read - Reads from a resource without modification
+   * **REST:** Read - Reads from a resource without modification
    *
    * @static
    * @param {RouteCallback} controller The controller to use
@@ -123,9 +112,9 @@ export class Router {
   public static get(controller: RouteCallback): Route
 
   /**
-   * For "GET" http requests without options
+   * For `GET` http requests without options
    *
-   * REST: Read - Reads from a resource without modification
+   * **REST:** Read - Reads from a resource without modification
    *
    * @static
    * @param {(string | RegExp)} routePath
@@ -136,9 +125,9 @@ export class Router {
   public static get(routePath: string | RegExp, controller: RouteCallback): Route
 
   /**
-   * For "GET" http requests with options
+   * For `GET` http requests with options
    *
-   * REST: Read - Reads from a resource without modification
+   * **REST:** Read - Reads from a resource without modification
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -153,9 +142,9 @@ export class Router {
   }
 
   /**
-    * For "POST" http requests that go to "/" or the prefix root if in a group
+    * For `POST` http requests that go to "/" or the prefix root if in a group
     *
-    * REST: Create - Creates a brand new resource
+    * **REST:** Create - Creates a brand new resource
     *
     * @static
     * @param {RouteCallback} controller The controller to use
@@ -165,9 +154,9 @@ export class Router {
   public static post(controller: RouteCallback): Route
 
   /**
-   * For "POST" http requests without options
+   * For `POST` http requests without options
    *
-   * REST: Create - Creates a brand new resource
+   * **REST:** Create - Creates a brand new resource
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -178,9 +167,9 @@ export class Router {
   public static post(routePath: string | RegExp, controller: RouteCallback): Route
 
   /**
-   * For "POST" http requests with options
+   * For `POST` http requests with options
    *
-   * REST: Create - Creates a brand new resource
+   * **REST:** Create - Creates a brand new resource
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -195,9 +184,9 @@ export class Router {
   }
 
   /**
-    * For "PUT" http requests that go to "/" or the prefix root if in a group
+    * For `PUT` http requests that go to "/" or the prefix root if in a group
     *
-    * REST: Update/Replace - Full modification of a resource
+    * **REST:** Update/Replace - Full modification of a resource
     *
     * @static
     * @param {RouteCallback} controller The controller to use
@@ -207,9 +196,9 @@ export class Router {
   public static put(controller: RouteCallback): Route
 
   /**
-   * For "PUT" http requests without options
+   * For `PUT` http requests without options
    *
-   * REST: Update/Replace - Full modification of a resource
+   * **REST:** Update/Replace - Full modification of a resource
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -220,9 +209,9 @@ export class Router {
   public static put(routePath: string | RegExp, controller: RouteCallback): Route
 
   /**
-   * For "PUT" http requests with options
+   * For `PUT` http requests with options
    *
-   * REST: Update/Replace - Full modification of a resource
+   * **REST:** Update/Replace - Full modification of a resource
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -237,9 +226,9 @@ export class Router {
   }
 
   /**
-    * For "DELETE" http requests that go to "/" or the prefix root if in a group
+    * For `DELETE` http requests that go to "/" or the prefix root if in a group
     *
-    * REST: Delete - Deletes all related resources
+    * **REST:** Delete - Deletes all related resources
     *
     * @static
     * @param {RouteCallback} controller The controller to use
@@ -249,9 +238,9 @@ export class Router {
   public static delete(controller: RouteCallback): Route
 
   /**
-   * For "DELETE" http requests without options
+   * For `DELETE` http requests without options
    *
-   * REST: Delete - Deletes all related resources
+   * **REST:** Delete - Deletes all related resources
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -262,9 +251,9 @@ export class Router {
   public static delete(routePath: string | RegExp, controller: RouteCallback): Route
 
   /**
-   * For "DELETE" http requests with options
+   * For `DELETE` http requests with options
    *
-   * REST: Delete - Deletes all related resources
+   * **REST:** Delete - Deletes all related resources
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -279,9 +268,9 @@ export class Router {
   }
 
   /**
-    * For "PATCH" http requests that go to "/" or the prefix root if in a group
+    * For `PATCH` http requests that go to "/" or the prefix root if in a group
     *
-    * REST: Update/Modify - Partial modification to a resource
+    * **REST:** Update/Modify - Partial modification to a resource
     *
     * @static
     * @param {RouteCallback} controller The controller to use
@@ -291,9 +280,9 @@ export class Router {
   public static patch(controller: RouteCallback): Route
 
   /**
-   * For "PATCH" http requests without options
+   * For `PATCH` http requests without options
    *
-   * REST: Update/Modify - Partial modification to a resource
+   * **REST:** Update/Modify - Partial modification to a resource
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -304,9 +293,9 @@ export class Router {
   public static patch(routePath: string | RegExp, controller: RouteCallback): Route
 
   /**
-   * For "PATCH" http requests with options
+   * For `PATCH` http requests with options
    *
-   * REST: Update/Modify - Partial modification to a resource
+   * **REST:** Update/Modify - Partial modification to a resource
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -321,9 +310,9 @@ export class Router {
   }
 
   /**
-    * For "HEAD" http requests that go to "/" or the prefix root if in a group
+    * For `HEAD` http requests that go to "/" or the prefix root if in a group
     *
-    * REST: Response Headers - Identical to get but without a body
+    * **REST:** Response Headers - Identical to `get` but without a body
     *
     * @static
     * @param {RouteCallback} controller The controller to use
@@ -333,9 +322,9 @@ export class Router {
   public static head(controller: RouteCallback): Route
 
   /**
-   * For "HEAD" http requests without options
+   * For `HEAD` http requests without options
    *
-   * REST: Response Headers - Identical to get but without a body
+   * **REST:** Response Headers - Identical to `get` but without a body
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -346,9 +335,9 @@ export class Router {
   public static head(routePath: string | RegExp, controller: RouteCallback): Route
 
   /**
-   * For "HEAD" http requests with options
+   * For `HEAD` http requests with options
    *
-   * REST: Response Headers - Identical to get but without a body
+   * **REST:** Response Headers - Identical to `get` but without a body
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -363,7 +352,7 @@ export class Router {
   }
 
   /**
-    * For "OPTIONS" http requests that go to "/" or the prefix root if in a group
+    * For `OPTIONS`http requests that go to "/" or the prefix root if in a group
     *
     * Describes the communication options for the resource
     *
@@ -375,7 +364,7 @@ export class Router {
   public static options(controller: RouteCallback): Route
 
   /**
-   * For "OPTIONS" http requests without options
+   * For `OPTIONS`http requests without options
    *
    * Describes the communication options for the resource
    *
@@ -388,7 +377,7 @@ export class Router {
   public static options(routePath: string | RegExp, controller: RouteCallback): Route
 
   /**
-   * For "OPTIONS" http requests with options
+   * For `OPTIONS`http requests with options
    *
    * Describes the communication options for the resource
    *
@@ -405,7 +394,7 @@ export class Router {
   }
 
   /**
-    * For any http requests that go to "/" or the prefix root if in a group
+    * For `any` http requests that go to "/" or the prefix root if in a group
     *
     * @static
     * @param {RouteCallback} controller The controller to use
@@ -415,7 +404,7 @@ export class Router {
   public static any(controller: RouteCallback): Route
 
   /**
-   * For any http requests without options
+   * For `any` http requests without options
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -426,7 +415,7 @@ export class Router {
   public static any(routePath: string | RegExp, controller: RouteCallback): Route
 
   /**
-   * For any http requests with options
+   * For `any` http requests with options
    *
    * @static
    * @param {(string | RegExp)} routePath The route path to watch
@@ -477,6 +466,22 @@ export class Router {
     types.forEach(type => this.createRoute(type, ...args))
   }
 
+  /**
+   * Creates a resource with the following routes where `name` is the resource name:
+   * ```
+   * GET      /name            name.main
+   * GET      /name/create     name.create
+   * POST     /name            name.store
+   * GET      /name/:id        name.show
+   * GET      /name/:id/edit   name.edit
+   * PUT      /name/:id        name.update
+   * DELETE   /name/:id        name.destroy
+   * ```
+   * @static
+   * @param {string} resourceName
+   * @param {string} controller
+   * @memberof Router
+   */
   public static resource(resourceName: string, controller: string) {
     let name = controller.replace(/\//g, '.')
     this.get(`/${resourceName}`, `${controller}@main`).name(`${name}.main`)
@@ -527,15 +532,6 @@ export class Router {
 
   public static findByPath(method: RequestMethod, path: string) {
     return this._routes.find(r => r.method == method && r.path == path)
-  }
-
-  private static async _runMiddleware(middleware: Function[], client: Client) {
-    for (let callback of middleware) {
-      let result = await callback(client)
-      if (result instanceof Response) return result
-      // if (!result) return client.response.sendErrorPage(500)
-    }
-    return true
   }
 
   private static _find(route: UrlWithStringQuery, method: RequestMethod) {

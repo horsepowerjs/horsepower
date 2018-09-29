@@ -4,9 +4,10 @@ import * as os from 'os'
 import * as fs from 'fs'
 import * as querystring from 'querystring'
 import { IncomingMessage, IncomingHttpHeaders } from 'http'
+import { RequestMethod, Route } from 'red5';
 import { Response } from './Response'
-import { Route } from './Route'
-import { RequestMethod } from './Router'
+// import { Route } from './Route'
+// import { RequestMethod } from './Router'
 
 export interface FileType {
   key: string
@@ -26,7 +27,7 @@ export class Client {
   private readonly _files: FileType[] = []
   private readonly _headers: IncomingHttpHeaders
   private readonly _response: Response
-  private _helpers: Helpers = {}
+  // private _helpers: Helpers = {}
   private _id: string
 
   public route!: Route
@@ -136,14 +137,14 @@ export class Client {
     }
   }
 
-  public get helpers(): Helpers { return this._helpers }
+  // public get helpers(): Helpers { return this._helpers }
   public get id(): string { return this._id }
 
   public setRoute(route: Route) {
     this.route = route
   }
 
-  public setHelpers(helpers: { [key: string]: Function }) {
-    this._helpers = helpers
-  }
+  // public setHelpers(helpers: { [key: string]: Function }) {
+  //   this._helpers = helpers
+  // }
 }

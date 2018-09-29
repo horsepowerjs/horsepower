@@ -1,7 +1,7 @@
 import * as path from 'path'
 import * as fs from 'fs'
 import * as helpers from './helper'
-import { Client } from 'red5';
+import { Client } from './Client';
 
 export interface pug {
   renderFile(path: string, options?: {}, callback?: Function): string

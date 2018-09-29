@@ -1,4 +1,5 @@
 const path = require('path')
+const fs = require('fs')
 const gulp = require('gulp')
 const ts = require('gulp-typescript')
 const sourcemaps = require('gulp-sourcemaps')
@@ -28,7 +29,7 @@ gulp.task('red5-server', () => makeProject(projects.server))
 gulp.task('red5-storage', () => makeProject(projects.storage))
 gulp.task('red5-session', () => makeProject(projects.session))
 
-gulp.task('build', gulp.series(['red5-router', 'red5-storage', 'red5-session', 'red5-server', 'red5', () => {
+gulp.task('build', gulp.series(['clean', 'red5-router', 'red5-storage', 'red5-session', 'red5-server', 'red5', () => {
   gulp.watch('./red5-router/src/**', gulp.series('red5-router'))
   gulp.watch('./red5-server/src/**', gulp.series('red5-server'))
   gulp.watch('./red5-storage/src/**', gulp.series('red5-storage'))
