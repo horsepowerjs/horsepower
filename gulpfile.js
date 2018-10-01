@@ -9,7 +9,8 @@ const projects = {
   router: './red5-router',
   server: './red5-server',
   storage: './red5-storage',
-  session: './red5-session'
+  session: './red5-session',
+  template: './red5-template'
 }
 
 function makeProject(projectRoot) {
@@ -28,11 +29,13 @@ gulp.task('red5-router', () => makeProject(projects.router))
 gulp.task('red5-server', () => makeProject(projects.server))
 gulp.task('red5-storage', () => makeProject(projects.storage))
 gulp.task('red5-session', () => makeProject(projects.session))
+gulp.task('red5-template', () => makeProject(projects.template))
 
-gulp.task('build', gulp.series(['clean', 'red5-router', 'red5-storage', 'red5-session', 'red5-server', 'red5', () => {
+gulp.task('build', gulp.series(['red5-router', 'red5-template', 'red5-storage', 'red5-session', 'red5-server', 'red5', () => {
   gulp.watch('./red5-router/src/**', gulp.series('red5-router'))
   gulp.watch('./red5-server/src/**', gulp.series('red5-server'))
   gulp.watch('./red5-storage/src/**', gulp.series('red5-storage'))
   gulp.watch('./red5-session/src/**', gulp.series('red5-session'))
+  gulp.watch('./red5-template/src/**', gulp.series('red5-template'))
   gulp.watch('./red5/src/**', gulp.series('red5'))
 }]))

@@ -1,0 +1,13 @@
+<extends file="main"></extends>
+
+<block name="content">
+  <div class="welcome-wrapper">
+    <div class="welcome section">
+      <h1>
+        <p>Welcome</p>
+        <p><span>Red</span>5 Http Server</p>
+      </h1>
+      <p each="[k, v] of items">{{v}}</p>
+    </div>
+  </div>
+</block>
