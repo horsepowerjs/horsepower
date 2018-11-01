@@ -1,4 +1,4 @@
-<extends file="main"></extends>
+<extends file="main" />
 
 <block name="content">
   <div class="welcome-wrapper">
@@ -7,7 +7,12 @@
         <p>Welcome</p>
         <p><span>Red</span>5 Http Server</p>
       </h1>
-      <p each="[k, v] of items">{{v}}</p>
     </div>
+    <span each="i in {{items}}">
+      {{i}}
+      <empty>
+        <span>Boo</span>
+      </empty>
+    </span>
   </div>
 </block>

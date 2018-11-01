@@ -5,6 +5,7 @@ const { Client, Storage } = require('red5')
  */
 module.exports.main = async function (client) {
   return client.response.render('welcome.red5', {
-    items: ['red', 'white', 'blue']
+    items: ['red', 'white', 'blue'],
+    empty: []
   })
 }

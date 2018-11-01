@@ -17,5 +17,8 @@
         "gulp-sourcemaps": "^2.6.4",
         "gulp-typescript": "^4.0.2",
         "typescript": "^3.0.3"
+    },
+    "dependencies": {
+        "@types/jsdom": "^12.2.0"
     }
 }

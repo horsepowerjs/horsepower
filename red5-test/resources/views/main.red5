@@ -11,7 +11,6 @@
 
   <body>
     <block name="content"></block>
-    <include file="./included.red5"></include>
   </body>
 
 </html>
