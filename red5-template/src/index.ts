@@ -130,18 +130,17 @@ export class Red5Template {
   }
 
   private ifBlock(element: Element, data: object) {
-    if (element.ownerDocument) {
-      let condition = element.getAttribute('condition') || 'false'
-      let result = !!eval(this.replaceHolders(condition, data))
-      let frag = element.ownerDocument.createDocumentFragment()
-      if (result == true) {
-        for (let child of element.childNodes) {
-          frag.appendChild(child.cloneNode(true))
-        }
+    if (!element.ownerDocument) return element.remove()
+    let frag = element.ownerDocument.createDocumentFragment()
+    let condition = element.getAttribute('condition') || 'false'
+    let result = !!eval(this.replaceHolders(condition, data))
+    if (result == true) {
+      for (let child of element.childNodes) {
+        frag.appendChild(child.cloneNode(true))
       }
-      this.step(frag, data)
-      element.replaceWith(frag)
     }
+    this.step(frag, data)
+    element.replaceWith(frag)
   }
 
   private debugBlock(element: Element, data: object) {
@@ -169,11 +168,11 @@ export class Red5Template {
       let childBlock = this.rootTpl.child.document.querySelector(`block[name=${name}]`)
       if (childBlock && element) {
         for (let child of childBlock.children) {
-          frag.appendChild(child)
+          frag.appendChild(child.cloneNode(true))
         }
-        this.step(frag, data)
       }
     }
+    this.step(frag, data)
     element.replaceWith(frag)
   }
 
@@ -269,8 +268,6 @@ export class Red5Template {
         }
         element.replaceWith(frag)
       } else {
-        console.log('here')
-
       }
     }
   }

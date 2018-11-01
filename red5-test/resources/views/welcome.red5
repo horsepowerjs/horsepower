@@ -8,11 +8,5 @@
         <p><span>Red</span>5 Http Server</p>
       </h1>
     </div>
-    <span each="i in {{items}}">
-      {{i}}
-      <empty>
-        <span>Boo</span>
-      </empty>
-    </span>
   </div>
 </block>
