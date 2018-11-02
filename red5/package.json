@@ -10,7 +10,8 @@
         "red5-server": "^1.0.0",
         "red5-router": "^1.0.0",
         "red5-storage": "^1.0.0",
-        "red5-session": "^1.0.0"
+        "red5-session": "^1.0.0",
+        "red5-template": "^1.0.0"
     },
     "types": "types/index.d.ts",
     "author": "",

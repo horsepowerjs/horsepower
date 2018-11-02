@@ -39,6 +39,10 @@ export class Server {
   public static app: AppSettings
 
   public static start() {
+    // Load the application env file if it exists
+    let envPath = helpers.applicationPath('.env')
+    let env = require('dotenv').config({ path: envPath })
+
     // Load the application configuration
     this.app = require(helpers.applicationPath('config/app')) as AppSettings
 
@@ -58,8 +62,6 @@ export class Server {
       let views = require(helpers.configPath('view')) as ViewSettings
       let storage = require(helpers.configPath('storage')) as StorageConfig
       let route = require(helpers.configPath('route')) as RouterSettings
-      let envPath = helpers.applicationPath('.env')
-      let env = require('dotenv').config({ path: envPath })
 
       // Setup dependencies
       Router.setControllersRoot(route.controllers)
