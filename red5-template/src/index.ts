@@ -101,7 +101,7 @@ export class Red5Template {
     let inclFileName = item.getAttribute('file')
     if (inclFileName && item.parentElement) {
       let dir = path.dirname(tpl.file)
-      let file = path.resolve(dir, inclFileName + (!inclFileName.endsWith('.red5') ? '.red5' : ''))
+      let file = path.resolve(dir, inclFileName + (!inclFileName.endsWith('.rtpl') ? '.rtpl' : ''))
       let parent = await this.parseFile(file)
       if (parent) {
         parent.child = tpl
