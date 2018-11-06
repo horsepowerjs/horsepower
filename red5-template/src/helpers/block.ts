@@ -9,7 +9,7 @@ export function block(root: Template, element: Element, data: object, mixins: Mi
   if (root.child && element.parentElement && name) {
     let childBlock = root.child.document.querySelector(`block[name=${name}]`)
     if (childBlock && element) {
-      for (let child of childBlock.children) {
+      for (let child of childBlock.childNodes) {
         frag.appendChild(child.cloneNode(true))
       }
     }

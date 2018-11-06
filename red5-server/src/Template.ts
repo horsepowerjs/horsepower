@@ -33,7 +33,7 @@ export class Template {
         let file = path.join(this._root, filePath)
         // Render red5 files
         if (filePath.endsWith('.rtpl')) {
-          html = await Red5Template.render(file, options, process.env)
+          html = await Red5Template.render(file, options)
         }
         // Render html files
         else if (filePath.endsWith('.html')) {

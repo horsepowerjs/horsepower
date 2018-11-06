@@ -128,6 +128,9 @@ export class Server {
   private static request(req: http.IncomingMessage, res: http.ServerResponse) {
     let body = ''
     let urlInfo = url.parse('http://' + req.headers.host + (req.url || '/'))
+    if ((process.env.APP_ENV || 'production') != 'production') {
+      console.log((req.method || 'GET') + ' ' + (req.url || '/'))
+    }
     req.on('data', (data: Buffer) => {
       body += data.toString('binary')
     }).on('end', async (data: Buffer) => {

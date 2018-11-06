@@ -18,10 +18,12 @@ function makeProject(projectRoot) {
   let tsResult = tsProject.src()
     .pipe(sourcemaps.init())
     .pipe(tsProject())
-  return tsResult.js.pipe(sourcemaps.write()).pipe(gulp.dest(path.join(projectRoot, 'lib')).on('end', () => {
-    tsResult.dts.pipe(gulp.dest(path.join(projectRoot, 'types')))
-    // gulp.src(path.join(projectRoot,'src/**/*.ts')).pipe(sourcemaps.init())
-  }))
+  return tsResult.js
+    .pipe(sourcemaps.write())
+    .pipe(gulp.dest(path.join(projectRoot, 'lib')).on('end', () => {
+      tsResult.dts.pipe(gulp.dest(path.join(projectRoot, 'types')))
+      // gulp.src(path.join(projectRoot,'src/**/*.ts')).pipe(sourcemaps.init())
+    }))
 }
 
 gulp.task('red5', () => makeProject(projects.red5))

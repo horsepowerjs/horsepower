@@ -6,5 +6,8 @@
     "strict": true,
     "removeComments": false,
     "inlineSourceMap": true
-  }
+  },
+  "exclude": [
+    "lib"
+  ]
 }

@@ -22,7 +22,8 @@ export function getMixins(tpl: Template) {
       let name = mixin.getAttribute('name') || ''
       let m = getMixin(mixins, name)
       if (!m && name.trim().length > 0) {
-        mixins.push({ name, element: mixin })
+        mixins.push({ name, element: mixin.cloneNode(true) as Element })
+        mixin.remove()
       }
     })
     tpl.child && get(tpl.child)
@@ -50,7 +51,7 @@ export function includeMixin(root: Template, element: Element, data: object, mix
   if (name) {
     let mixin = getMixin(mixins, name)
     if (mixin) {
-      for (let child of mixin.children) {
+      for (let child of mixin.childNodes) {
         frag.appendChild(child.cloneNode(true))
       }
     }

@@ -13,6 +13,7 @@ module.exports.main = async function (client) {
       first: 'Mark',
       last: 'Twain'
     }],
-    empty: []
+    empty: [],
+    age: 25
   })
 }

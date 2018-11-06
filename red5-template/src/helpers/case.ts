@@ -2,38 +2,26 @@ import { Template } from './extend';
 import { step, replaceHolders } from '.';
 import { Mixin } from './mixin';
 
-export function ifBlock(root: Template, element: Element, data: object, mixins: Mixin[]) {
+export function caseBlock(root: Template, element: Element, data: object, mixins: Mixin[]) {
   if (!element.ownerDocument) return
-  let nodes: Element[] = [element]
+  let nodes: Element[] = Array.from(element.querySelectorAll('when, default'))
 
-  // Get all the nodes in the current if block
-  function getNext(element: Element) {
-    if (!element.nextElementSibling) return
-    let ref = element.nextElementSibling
-    if (ref.nodeName.toLowerCase() == 'elif') {
-      nodes.push(ref)
-      getNext(ref)
-    } else if (ref.nodeName.toLowerCase() == 'else') {
-      nodes.push(ref)
-    }
-  }
-
-  // Find all nodes within the if/elif/else block
-  getNext(element)
+  let value = replaceHolders(element.getAttribute(':') || 'false', data)
 
   let frag = element.ownerDocument.createDocumentFragment()
-  // Loop over all the if/elif/else nodes
+  // Loop over all the when/default nodes
   for (let node of nodes) {
-    // If the node is an else node append the data to the fragment
-    if (node.nodeName.toLowerCase() == 'else') {
+    // If the node is a default node append the data to the fragment
+    if (node.nodeName.toLowerCase() == 'default') {
       for (let child of node.childNodes) {
         frag.appendChild(child.cloneNode(true))
       }
     }
-    // the node is an if/elif node, test its conditions
+    // the node is a when node, test its conditions
     else {
       let condition = node.getAttribute(':') || 'false'
-      let result = !!eval(replaceHolders(condition, data))
+      let result = replaceHolders(condition, data) == value
+      // let result = !!eval(replaceHolders(condition, data))
       // The test failed go to the next node
       if (!result) continue
       // The test succeeded add the children to the fragment
@@ -49,4 +37,5 @@ export function ifBlock(root: Template, element: Element, data: object, mixins: 
   for (let node of nodes) {
     node.remove()
   }
+  element.remove()
 }

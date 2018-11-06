@@ -8,12 +8,19 @@ import { debugBlock } from './debug';
 import { eachBlock } from './each';
 import { forBlock } from './for';
 import { includeMixin, Mixin } from './mixin';
+import { caseBlock } from './case';
 
 export * from './files'
 export * from './extend'
 
 export function getData(text: string, data: object) {
   return find(text.replace(/^\{\{|\}\}$/g, ''), data)
+}
+
+export function dropFirst(text: string) {
+  let r = text.replace(/^\{\{|\}\}$/g, '').split('.')
+  r.shift()
+  return r.join('.')
 }
 
 export function find(query: string, data: object) {
@@ -46,46 +53,59 @@ export function fragmentFromFile(file: string) {
   })
 }
 
-export async function step(root: Template, node: Document | Element | DocumentFragment, data: object, mixins: Mixin[]): Promise<any> {
-  for (let child of node.children) {
-    let name = child.nodeName.toLowerCase()
-    // Elements based on tag name
-    switch (name) {
-      case 'import':
-        await importBlock(root, child, data, mixins)
-        return step(root, node, data, mixins)
-      case 'block':
-        await block(root, child, data, mixins)
-        return step(root, node, data, mixins)
-      // case 'mixin':
-      //   await mixin(child, data, mixins)
-      //   return step(root, node, data,mixins)
-      // // TODO: Get includes working to include mixins
-      case 'include':
-        await includeMixin(root, child, data, mixins)
-        return step(root, node, data, mixins)
-      // // TODO: Add elif/else statements
-      case 'if':
-        await ifBlock(root, child, data, mixins)
-        return step(root, node, data, mixins)
-      case 'debug':
-        await debugBlock(child, data)
-        return step(root, node, data, mixins)
-    }
-    // Elements based on attribute
-    for (let attr of child.attributes) {
-      let attrName = attr.name
-      switch (attrName) {
-        case 'each':
-          await eachBlock(root, child, data, mixins)
-          return step(root, node, data, mixins)
-        case 'for':
-          await forBlock(root, child, data, mixins)
-          return step(root, node, data, mixins)
+export function remove(element: Element) {
+  element.remove()
+}
+
+export async function step(root: Template, node: Document | Element | Node | DocumentFragment, data: object, mixins: Mixin[]): Promise<any> {
+  if (
+    node instanceof root.dom.window.Element ||
+    node instanceof root.dom.window.Document ||
+    node instanceof root.dom.window.DocumentFragment
+  ) {
+    for (let child of node.childNodes) {
+      if (child.nodeType == root.dom.window.Node.TEXT_NODE && child.textContent) {
+        // Replace text node placeholders
+        child.textContent = child.textContent.replace(/\{\{(.+)\}\}/g, (full, v) => getData(v, data))
+      } else if (child instanceof root.dom.window.Element) {
+        let name = child.nodeName.toLowerCase()
+        // Elements based on tag name
+        switch (name) {
+          case 'import':
+            await importBlock(root, child, data, mixins)
+            return step(root, node, data, mixins)
+          case 'block':
+            await block(root, child, data, mixins)
+            return step(root, node, data, mixins)
+          case 'include':
+            await includeMixin(root, child, data, mixins)
+            return step(root, node, data, mixins)
+          case 'if':
+            await ifBlock(root, child, data, mixins)
+            return step(root, node, data, mixins)
+          case 'case':
+            await caseBlock(root, child, data, mixins)
+            return step(root, node, data, mixins)
+          case 'each':
+            await eachBlock(root, child, data, mixins)
+            return step(root, node, data, mixins)
+          case 'for':
+            await forBlock(root, child, data, mixins)
+            return step(root, node, data, mixins)
+          case 'debug':
+            await debugBlock(child, data)
+            return step(root, node, data, mixins)
+          // Remove node since it's not part of a valid block group
+          // Blocks cannot start with an "elif" or "else"
+          case 'elif':
+          case 'else':
+            await remove(child)
+            return step(root, node, data, mixins)
+        }
       }
-    }
-    if (child.children.length > 0) {
-      await step(root, child, data, mixins)
+      if (child.childNodes.length > 0) {
+        await step(root, child, data, mixins)
+      }
     }
   }
 }
