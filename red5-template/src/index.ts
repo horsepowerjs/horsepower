@@ -2,16 +2,33 @@ import { Template, parseFile, step, extend } from './helpers'
 import { getMixins } from './helpers/mixin'
 import { minify } from 'html-minifier'
 
+export interface TemplateData {
+  originalData: { [key: string]: any }
+  scopes: {
+    reference: string
+    data: { [key: string]: any }
+  }[]
+}
+
 export class Red5Template {
 
-  private data: object
+  private templateData: TemplateData
 
-  public constructor(options: object = {}) {
-    this.data = options
+  private constructor(options: TemplateData) {
+    this.templateData = options
   }
 
-  public static async render(file: string, data: { [key: string]: any } = {}) {
-    let r5tpl = new Red5Template(data)
+  public async build(tpl: Template) {
+    let rootTpl = await extend(tpl)
+    let mixins = getMixins(rootTpl)
+    await step(rootTpl, rootTpl.document, this.templateData, mixins)
+    return rootTpl
+  }
+
+  public static async render(file: string, data: object = {}) {
+    let templateData: TemplateData = { originalData: {}, scopes: [] }
+    templateData.originalData = Object.assign<object, object>(templateData.originalData, data)
+    let r5tpl = new Red5Template(templateData)
     let tpl = await parseFile(file)
     let dom = await r5tpl.build(tpl)
     let html = dom.dom.serialize()
@@ -31,12 +48,4 @@ export class Red5Template {
       minifyJS: true
     })
   }
-
-  public async build(tpl: Template) {
-    let rootTpl = await extend(tpl)
-    let mixins = getMixins(rootTpl)
-    await step(rootTpl, rootTpl.document, this.data, mixins)
-    return rootTpl
-  }
-
 }

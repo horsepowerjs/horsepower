@@ -9,4 +9,12 @@
       </h1>
     </div>
   </div>
+  <each :="i in {{$comments}}">
+    <div>
+      {{$i.comment}}
+      <each :="j in {{$i.other}}">
+        {{$j.subComment}}
+      </each>
+    </div>
+  </each>
 </block>

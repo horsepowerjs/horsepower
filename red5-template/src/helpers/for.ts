@@ -1,8 +1,9 @@
 import { step } from '.'
 import { Template } from './extend'
 import { Mixin } from './mixin';
+import { TemplateData } from '..';
 
-export async function forBlock(root: Template, element: Element, data: object, mixins: Mixin[]) {
+export async function forBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let query = element.getAttribute(':')
   if (query && element.ownerDocument) {
     let matches = query.replace(/\s\s+/g, ' ').split(/(\w+) from (-?\d+) (through|thru|to) (-?\d+)/i).filter(String)
@@ -10,7 +11,7 @@ export async function forBlock(root: Template, element: Element, data: object, m
       element.remove()
       return
     }
-    function makeNode(element: Element, frag: DocumentFragment, key: string, i: number, data: object) {
+    function makeNode(element: Element, frag: DocumentFragment, key: string, i: number, data: TemplateData) {
       for (let child of element.childNodes) {
         let clone = child.cloneNode(true)
         if (clone instanceof root.dom.window.HTMLElement) {

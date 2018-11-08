@@ -1,8 +1,9 @@
 import { Template } from './extend';
 import { step, replaceHolders } from '.';
 import { Mixin } from './mixin';
+import { TemplateData } from '..';
 
-export function caseBlock(root: Template, element: Element, data: object, mixins: Mixin[]) {
+export function caseBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   if (!element.ownerDocument) return
   let nodes: Element[] = Array.from(element.querySelectorAll('when, default'))
 

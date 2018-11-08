@@ -1,6 +1,7 @@
 import { replaceHolders } from '.';
+import { TemplateData } from '..';
 
-export function debugBlock(element: Element, data: object) {
+export function debugBlock(element: Element, data: TemplateData) {
   // get the data to write to the console
   let log = element.getAttribute('log')
   let error = element.getAttribute('error')

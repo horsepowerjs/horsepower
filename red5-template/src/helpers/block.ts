@@ -1,8 +1,9 @@
 import { Template } from './extend';
 import { step } from '.';
 import { Mixin } from './mixin';
+import { TemplateData } from '..';
 
-export function block(root: Template, element: Element, data: object, mixins: Mixin[]) {
+export async function block(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let name = element.getAttribute('name')
   if (!element.ownerDocument) return
   let frag = element.ownerDocument.createDocumentFragment()
@@ -14,6 +15,6 @@ export function block(root: Template, element: Element, data: object, mixins: Mi
       }
     }
   }
-  step(root, frag, data, mixins)
+  await step(root, frag, data, mixins)
   element.replaceWith(frag)
 }

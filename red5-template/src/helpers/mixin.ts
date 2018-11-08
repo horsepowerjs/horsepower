@@ -1,5 +1,6 @@
 import { Template } from './extend';
 import { step } from '.';
+import { TemplateData } from '..';
 
 export interface Mixin {
   name: string
@@ -41,7 +42,7 @@ export function getMixins(tpl: Template) {
 //   element.remove()
 // }
 
-export function includeMixin(root: Template, element: Element, data: object, mixins: Mixin[]) {
+export function includeMixin(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let name = element.getAttribute('use')
   if (!element.ownerDocument) {
     element.remove()
