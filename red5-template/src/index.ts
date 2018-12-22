@@ -1,4 +1,4 @@
-import { Template, parseFile, step, extend } from './helpers'
+import { Template, parseFile, step, extend, getData } from './helpers'
 import { getMixins } from './helpers/mixin'
 import { minify } from 'html-minifier'
 
@@ -9,6 +9,8 @@ export interface TemplateData {
     data: { [key: string]: any }
   }[]
 }
+
+export type Nullable<T> = T | null | undefined
 
 export class Red5Template {
 
@@ -22,6 +24,11 @@ export class Red5Template {
     let rootTpl = await extend(tpl)
     let mixins = getMixins(rootTpl)
     await step(rootTpl, rootTpl.document, this.templateData, mixins)
+    if (rootTpl.document.documentElement) {
+      rootTpl.document.documentElement.innerHTML =
+        rootTpl.document.documentElement.innerHTML
+          .replace(/\{\{(.+?)\}\}/g, (full, val) => getData(val, this.templateData))
+    }
     return rootTpl
   }
 

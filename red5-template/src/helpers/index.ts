@@ -25,25 +25,8 @@ export function getData(text: string, data: TemplateData, scope?: string) {
 }
 
 export function getVariables(string: string) {
-  let results: string[] = []
   let match = (string.match(/\{\{.+?\}\}/) || [])[0]
-  // for (let i = 0; i < matches.length; i++) {
   return [...new Set(match.match(/\$(?!(\d|\.))[.\w]+/g) || [])]
-  // }
-  return results
-  // return {
-  //   first() {
-  //     return this.vars[0]
-  //   },
-  //   find() {
-  //     this.vars[0].vars.find(i => i.)
-  //   },
-  //   vars: results
-  // }
-  // let variables: string[] = []
-  // if (matches && matches[0]) {
-  //   variables = Array.from(matches[0].match(/\$(?!(\d|\.))[.\w]+/g) || [])
-  // }
 }
 
 export function dropFirst(text: string) {
@@ -52,9 +35,9 @@ export function dropFirst(text: string) {
   return r.join('.')
 }
 
-export function find(query: string, data: object) {
+export function find(query: string, data: object | any[]) {
   return query.split('.').reduce<any>((obj, val) => {
-    return obj[val]
+    return obj ? obj[val] : obj
   }, data)
 }
 

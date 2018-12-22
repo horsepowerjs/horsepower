@@ -1,9 +1,9 @@
 import { getData, step, dropFirst, isHTMLElement, getVariables, find } from '.'
 import { Template } from './extend'
-import { Mixin } from './mixin';
-import { TemplateData } from '..';
+import { Mixin } from './mixin'
+import { TemplateData, Nullable } from '..'
 
-export function getScopeData(search: string, data: TemplateData, scope: string | null | undefined, key: string | number) {
+export function getScopeData(search: string, data: TemplateData, scope?: Nullable<string>, key?: Nullable<string | number>) {
   let dataToSearch = data.originalData
   // console.log('scope', scope)
   if (search.split('.').length == 1 && !scope) {
@@ -12,12 +12,12 @@ export function getScopeData(search: string, data: TemplateData, scope: string |
     dataToSearch = data.scopes && data.scopes.length > 0 ?
       (data.scopes.find(i => i.reference == scope.replace(/^\$/, '')) || { data: {} }).data : {}
   }
-  // console.log(scope.replace(/^\$/, ''), dataToSearch)
-  console.log('data', dataToSearch)
-  return find(search.replace(new RegExp(`^\\$${scope}`), key.toString()), dataToSearch)
+  // console.log(scope, search, dataToSearch)
+  // console.log('search', search, key, search.replace(new RegExp(`^\\$${scope}`), (key && ['string', 'number'].includes(typeof key) ? key : '').toString()).replace(/^\$/, ''))
+  return find(search.replace(new RegExp(`^\\$${scope}`), (key || search.replace(/^\$/, '')).toString()), dataToSearch)
 }
 
-export async function eachBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
+export async function eachBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[], scope?: string) {
   let query = element.getAttribute(':')
   let nodes: Element[] = []
 
@@ -25,13 +25,14 @@ export async function eachBlock(root: Template, element: Element, data: Template
   function getNext(element: Element) {
     if (!element.nextElementSibling) return
     let ref = element.nextElementSibling
-    if (ref.nodeName.toLowerCase() == 'else') {
+    if (element.nextElementSibling.nodeName.toLowerCase() == 'else') {
       nodes.push(ref)
     }
   }
 
   // Find all nodes within the if/elif/else block
   getNext(element)
+
   if (query && element.ownerDocument) {
     let key = '', value = ''
     let [placeholderKeys, placeholderData] = query.split(' in ')
@@ -47,16 +48,26 @@ export async function eachBlock(root: Template, element: Element, data: Template
       key = placeholderKeys
     }
 
-
-    let variables = getVariables(placeholderData)
+    // console.log('placeholder', JSON.stringify(placeholderData))
+    let variable = getVariables(placeholderData)[0] || ''
 
     let frag = element.ownerDocument.createDocumentFragment()
-    let dataObject = getScopeData(variables[0] || '', data,
-      variables[0].split('.').length > 1 ? variables[0].split('.').shift() : null, 0)
-    // console.log(dataObject)
+    let breadcrumb = variable.split('.')
+    // let search = (breadcrumb.length > 1 ? breadcrumb[0] : variable) || ''
+    let scope = breadcrumb.length > 1 ? breadcrumb[0] : null
+
+    // console.log(scope, breadcrumb, data)
+    let dataObject = getScopeData(breadcrumb.join('.'), data, scope)
+
+    console.log(dataObject, scope)
     data.scopes.push({ reference: key, data: dataObject })
     console.log(JSON.stringify(data.scopes))
 
+    // Find values between "{{" and "}}" and not between html tags "<" and ">"
+    // Starts with a "$" and not followed by a "\d" or "."
+    // Valid Examples: {{$cat}}, {{$i.name}}
+    // Invalid Examples: {{$234}}, {{$.name}}
+    let regexp = new RegExp(`\\{\\{(\\$(?!(\\d|\\.))${key}[.\\w]+)(?![^\\<]*\\>)\\}\\}`, 'g')
 
     if (dataObject && typeof dataObject[Symbol.iterator] == 'function' && nodes.length > 0 && dataObject.length == 0) {
     } else if (dataObject && typeof dataObject[Symbol.iterator] == 'function') {
@@ -66,9 +77,17 @@ export async function eachBlock(root: Template, element: Element, data: Template
           let clone = child.cloneNode(true)
           if (clone.nodeType == root.dom.window.Node.TEXT_NODE && clone.textContent) {
             // console.log(clone.textContent, clone.textContent.replace(new RegExp(`\\{\\{(\\$${key}).*?\\}\\}`, 'g'), 'asdf'))
-            clone.textContent = clone.textContent.replace(new RegExp(`\\{\\{(\\$${key}).*?\\}\\}`, 'g'), (full, v) => getScopeData(v, data, key, k))
+            clone.textContent = clone.textContent.replace(regexp, (full, v) => {
+              console.log(v, key, k)
+              return getScopeData(v, data, key, k)
+            })
           } else if (clone instanceof root.dom.window.HTMLElement) {
-            // clone.innerHTML = clone.innerHTML.replace(new RegExp(`\\{\\{(\\$${key}).*?\\}\\}`, 'g'), (full, v) => getScopeData(v, data, key, k))
+            // console.log(key)
+            clone.innerHTML = clone.innerHTML.replace(regexp, (full, v) => {
+              // clone.innerHTML = clone.innerHTML.replace(/\{\{(\$(?!(\d|\.))[.\w]+)(?![^\<]*\>)\}\}/g, (full, v) => {
+              // console.log(full, v, key, k)
+              return getScopeData(v, data, key, k)
+            })
           }
           await step(root, clone, data, mixins)
           frag.appendChild(clone)

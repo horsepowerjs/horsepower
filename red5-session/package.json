@@ -4,7 +4,8 @@
     "description": "",
     "main": "lib/index.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "prepack": "rm -rf lib && rm -rf types && tsc -p ."
     },
     "types": "types/index.d.ts",
     "author": "",
@@ -15,5 +16,9 @@
     },
     "devDependencies": {
         "@types/cookie": "^0.3.1"
-    }
+    },
+    "files": [
+        "lib",
+        "types"
+    ]
 }

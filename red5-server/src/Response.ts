@@ -10,9 +10,9 @@ export class Response {
   // private _media: MediaFile | null = null
   private _buffer: Buffer | null = null
 
-  public constructor(private client: Client, public _body: string = '', public _headers: OutgoingHttpHeaders = {
+  public constructor(private client: Client, private _body: string = '', private _headers: OutgoingHttpHeaders = {
     'Content-Type': 'text/html'
-  }, public _code: number = 200, public _length: number = 0) { }
+  }, private _code: number = 200, private _length: number = 0) { }
 
   public get code(): number { return this._code }
   public get body(): string { return this._body }

@@ -27,6 +27,7 @@ export interface AppSettings {
   env?: string
   https?: https.ServerOptions | false
   chunkSize?: number
+  static?: string[]
 }
 
 export interface Connection {
@@ -147,6 +148,20 @@ export class Server {
             return await this.send(client, req, res)
           }
         } catch (e) { }
+
+        // If the file isn't found in the public folder attempt to find it in the defined static folder(s)
+        if (this.app.static && Array.isArray(this.app.static) && this.app.static.length > 0) {
+          for (let staticFolder in this.app.static) {
+            let filePath = path.join(staticFolder, urlInfo.pathname)
+            try {
+              let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
+              if (stats.isFile()) {
+                client.response.setFile(filePath).setContentLength(stats.size)
+                return await this.send(client, req, res)
+              }
+            } catch (e) { }
+          }
+        }
       }
 
       let routeInfo = await Router.route(urlInfo, client.method)

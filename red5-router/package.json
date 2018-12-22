@@ -4,10 +4,15 @@
     "description": "",
     "main": "lib/index.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "prepack": "rm -rf lib && rm -rf types && tsc -p ."
     },
     "types": "types/index.d.ts",
     "author": "",
     "license": "ISC",
-    "dependencies": {}
+    "dependencies": {},
+    "files": [
+        "lib",
+        "types"
+    ]
 }
