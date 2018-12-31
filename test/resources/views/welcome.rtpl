@@ -1,0 +1,12 @@
+<extends file="main" />
+
+<block name="content">
+  <div class="welcome-wrapper">
+    <div class="welcome section">
+      <h1>
+        <span>Welcome</span>
+        <span><span>Red</span>5 Http Server</span>
+      </h1>
+    </div>
+  </div>
+</block>

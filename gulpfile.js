@@ -5,12 +5,12 @@ const ts = require('gulp-typescript')
 const sourcemaps = require('gulp-sourcemaps')
 
 const projects = {
-  red5: './red5',
-  router: './red5-router',
-  server: './red5-server',
-  storage: './red5-storage',
-  session: './red5-session',
-  template: './red5-template'
+  red5: './core',
+  router: './router',
+  server: './server',
+  storage: './storage',
+  session: './session',
+  template: './template'
 }
 
 function makeProject(projectRoot) {
