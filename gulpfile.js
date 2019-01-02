@@ -10,7 +10,8 @@ const projects = {
   server: './server',
   storage: './storage',
   session: './session',
-  template: './template'
+  template: './template',
+  middleware: './middleware'
 }
 
 function makeProject(projectRoot) {
@@ -26,18 +27,20 @@ function makeProject(projectRoot) {
     }))
 }
 
-gulp.task('red5', () => makeProject(projects.red5))
-gulp.task('red5-router', () => makeProject(projects.router))
-gulp.task('red5-server', () => makeProject(projects.server))
-gulp.task('red5-storage', () => makeProject(projects.storage))
-gulp.task('red5-session', () => makeProject(projects.session))
-gulp.task('red5-template', () => makeProject(projects.template))
+// gulp.task('red5', () => makeProject(projects.red5))
+gulp.task('router', () => makeProject(projects.router))
+gulp.task('server', () => makeProject(projects.server))
+gulp.task('storage', () => makeProject(projects.storage))
+gulp.task('session', () => makeProject(projects.session))
+gulp.task('template', () => makeProject(projects.template))
+gulp.task('middleware', () => makeProject(projects.middleware))
 
-gulp.task('build', gulp.series(['red5-router', 'red5-template', 'red5-storage', 'red5-session', 'red5-server', 'red5', () => {
-  gulp.watch('./red5-router/src/**', gulp.series('red5-router'))
-  gulp.watch('./red5-server/src/**', gulp.series('red5-server'))
-  gulp.watch('./red5-storage/src/**', gulp.series('red5-storage'))
-  gulp.watch('./red5-session/src/**', gulp.series('red5-session'))
-  gulp.watch('./red5-template/src/**', gulp.series('red5-template'))
-  gulp.watch('./red5/src/**', gulp.series('red5'))
+gulp.task('build', gulp.series(['router', 'template', 'storage', 'session', 'server', 'middleware', () => {
+  gulp.watch('./router/src/**', gulp.series('router'))
+  gulp.watch('./server/src/**', gulp.series('server'))
+  gulp.watch('./storage/src/**', gulp.series('storage'))
+  gulp.watch('./session/src/**', gulp.series('session'))
+  gulp.watch('./template/src/**', gulp.series('template'))
+  gulp.watch('./middleware/src/**', gulp.series('middleware'))
+  // gulp.watch('./red5/src/**', gulp.series('red5'))
 }]))

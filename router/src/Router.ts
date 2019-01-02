@@ -1,18 +1,19 @@
 import { UrlWithStringQuery } from 'url'
 import * as path from 'path'
 import { Route } from './Route'
+import { Middleware } from '@red5/middleware'
 
 export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'any'
 
-declare interface Client { }
+// declare interface Client { }
 
-declare interface ClientMiddleware {
-  handle?(client: Client): any
-  postHandle?(client: Client): any
-}
+// declare interface Middleware {
+//   handle?(client: Client): any
+//   postHandle?(client: Client): any
+// }
 
 export interface RouterOptions {
-  middleware?: ClientMiddleware[]
+  middleware?: Middleware[]
 }
 
 export type RouteCallback = string | Function | Promise<Function | string | void>

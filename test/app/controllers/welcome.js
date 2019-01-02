@@ -1,4 +1,4 @@
-const { Client, Storage } = require('red5')
+const { Client } = require('@red5/server')
 
 /**
  * @param {Client} client

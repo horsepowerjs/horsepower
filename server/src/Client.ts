@@ -4,10 +4,9 @@ import * as os from 'os'
 import * as fs from 'fs'
 import * as querystring from 'querystring'
 import { IncomingMessage, IncomingHttpHeaders } from 'http'
-import { RequestMethod, Route } from '@red5/core'
-import { Response } from './Response'
-// import { Route } from './Route'
-// import { RequestMethod } from './Router'
+
+import { RequestMethod, Route } from '@red5/router'
+import { Response } from '@red5/server'
 
 export interface FileType {
   key: string

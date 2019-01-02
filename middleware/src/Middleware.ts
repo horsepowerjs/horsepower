@@ -1,13 +1,9 @@
-import { Client } from './Client'
+import { Client } from '@red5/server'
 import { Route } from '@red5/router'
-import { Response } from './Response';
+import { Response } from '@red5/server'
+import { Middleware } from '.'
 
-export interface ClientMiddleware {
-  handle?(client: Client): boolean | Response | void
-  postHandle?(client: Client): boolean | Response | void
-}
-
-export class Middleware {
+export class MiddlewareManager {
 
   public static async run(theRoute: Route, client: Client, type: 'pre' | 'post' = 'pre') {
     // Execute the middleware that is attached to the route
@@ -34,7 +30,7 @@ export class Middleware {
     }
   }
 
-  private static async _runPreMiddleware(middleware: ClientMiddleware[], client: Client) {
+  private static async _runPreMiddleware(middleware: Middleware[], client: Client): Promise<boolean | Response> {
     for (let callback of middleware) {
       if (!callback.handle) continue
       let result = await callback.handle(client)
@@ -45,7 +41,7 @@ export class Middleware {
     return true
   }
 
-  private static async _runPostMiddleware(middleware: ClientMiddleware[], client: Client) {
+  private static async _runPostMiddleware(middleware: Middleware[], client: Client): Promise<boolean | Response> {
     for (let callback of middleware) {
       if (!callback.postHandle) continue
       let result = await callback.postHandle(client)

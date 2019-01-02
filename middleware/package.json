@@ -1,0 +1,20 @@
+{
+    "name": "@red5/middleware",
+    "version": "1.0.0",
+    "description": "",
+    "main": "lib/index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "prepack": "rm -rf lib && rm -rf types && tsc -p ."
+    },
+    "types": "types/index.d.ts",
+    "author": "",
+    "dependencies": {
+        "@red5/server": "^1.0.0"
+    },
+    "license": "ISC",
+    "files": [
+        "lib",
+        "types"
+    ]
+}

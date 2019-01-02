@@ -1,1 +1,1 @@
-const { Router } = require('@red5/core')
+const { Router } = require('@red5/router')

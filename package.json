@@ -19,6 +19,6 @@
         "gulp": "^4.0.0",
         "gulp-sourcemaps": "^2.6.4",
         "gulp-typescript": "^4.0.0",
-        "typescript": "^3.1.6"
+        "typescript": "^3.2.2"
     }
 }

@@ -5,7 +5,7 @@ module.exports = {
     {
       name: 'Red5',
       script: path.join(__dirname, 'index.js'),
-      watch: path.join(__dirname, '../', '**/*.js')
+      watch: [path.join(__dirname, '../', '**/*.js')]
     }
   ]
 }

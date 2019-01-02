@@ -1,4 +1,4 @@
-const { appPath, applicationPath } = require('red5')
+const { appPath, applicationPath } = require('@red5/server')
 
 module.exports = {
   controllers: appPath('controllers'),

@@ -1,6 +1,6 @@
 import { OutgoingHttpHeaders } from 'http'
 import { Router } from '@red5/router'
-import { Client } from './Client'
+import { Client } from '@red5/server'
 
 export class Response {
 

@@ -1,6 +1,6 @@
-const { env } = require('red5')
+const { env } = require('@red5/server')
 
-/** @type {import('red5').AppSettings} exports */
+/** @type {import('@red5/server').AppSettings} exports */
 module.exports = {
   port: parseInt(env('APP_PORT', '80')),
   name: env('APP_NAME', 'Red5'),

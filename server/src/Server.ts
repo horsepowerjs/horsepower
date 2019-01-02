@@ -4,12 +4,13 @@ import * as fs from 'fs'
 import * as mime from 'mime-types'
 import * as path from 'path'
 import * as url from 'url'
-import { Router, Storage, StorageConfig, Route } from '@red5/core'
 import { Template } from './Template'
 import * as helpers from './helper'
-import { Middleware } from './Middleware'
-import { Response } from './Response'
-import { Client } from './Client'
+
+import { Router } from '@red5/router'
+import { Storage, StorageConfig } from '@red5/storage'
+import { MiddlewareManager } from '@red5/middleware'
+import { Client, Response } from '@red5/server'
 
 export interface RouterSettings {
   controllers: string
@@ -169,7 +170,7 @@ export class Server {
       if (routeInfo && routeInfo.route && routeInfo.callback) {
         client.setRoute(routeInfo.route)
         // Run the pre request middleware
-        let preResult = await Middleware.run(routeInfo.route, client, 'pre')
+        let preResult = await MiddlewareManager.run(routeInfo.route, client, 'pre')
         if (preResult !== true && !(preResult instanceof Response)) {
           await this.getErrorPage(client, 400)
           return this.send(client, req, res)
@@ -177,7 +178,7 @@ export class Server {
         // Run the controller
         resp = await routeInfo.callback(client)
         // Run the post request middleware
-        let postResult = await Middleware.run(routeInfo.route, client, 'post')
+        let postResult = await MiddlewareManager.run(routeInfo.route, client, 'post')
         if (postResult !== true && !(postResult instanceof Response)) {
           await this.getErrorPage(client, 400)
           return this.send(client, req, res)
