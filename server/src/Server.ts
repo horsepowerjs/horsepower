@@ -130,9 +130,6 @@ export class Server {
   private static request(req: http.IncomingMessage, res: http.ServerResponse) {
     let body = ''
     let urlInfo = url.parse('http://' + req.headers.host + (req.url || '/'))
-    if ((process.env.APP_ENV || 'production') != 'production') {
-      console.log((req.method || 'GET') + ' ' + (req.url || '/'))
-    }
     req.on('data', (data: Buffer) => {
       body += data.toString('binary')
     }).on('end', async (data: Buffer) => {
@@ -185,6 +182,11 @@ export class Server {
         }
       }
 
+      // this.logRequest(req)
+      // if ((process.env.APP_ENV || 'production') != 'production') {
+      //   console.log((req.method || 'GET') + ' ' + (req.url || '/'))
+      // }
+
       // await client.session.close()
       if (!resp) {
         await this.getErrorPage(client, 400)
@@ -193,6 +195,7 @@ export class Server {
       else await this.send(client, req, res)
     })
   }
+
 
   public static async sendDebugPage(client: Client, data: { [key: string]: any }) {
     return await this.getErrorPage(client, 1000, data)
@@ -220,6 +223,21 @@ export class Server {
     return client.response.setCode(code).setBody(file)
   }
 
+  private static logRequest(req: http.IncomingMessage, client: Client) {
+    if ((process.env.APP_ENV || 'production') != 'production') {
+      let msg = (req.method || 'GET') + ' ' + (req.url || '/')
+      if ([
+        100, 101, 102,
+        200, 201, 202, 203, 204, 205, 206, 207, 208,
+        300, 301, 302, 303, 304, 305, 306, 307, 308
+      ].includes(client.response.code)) {
+        console.log('%s %s', client.response.code, msg)
+      } else {
+        console.error('\x1b[31m%s %s\x1b[0m', client.response.code, msg)
+      }
+    }
+  }
+
   private static async send(client: Client, req: http.IncomingMessage, res: http.ServerResponse) {
     let fileSize = client.response.contentLength
     let start = 0, end = fileSize - 1 < start ? start : fileSize - 1
@@ -242,10 +260,21 @@ export class Server {
       let contentType = mime.lookup(client.response.filePath) || 'text/plain'
       client.response.setHeader('Content-Type', contentType)
     }
+
+    // Execute the middleware termination commands
+    await MiddlewareManager.run(client.route, client, 'terminate')
+
+    // Write the response headers
     res.writeHead(client.response.code, client.response.headers)
+
+    this.logRequest(req, client)
+
+    // If the method is head or options no body should be sent
     if (client.method == 'head' || client.method == 'options') {
       return res.end()
     }
+
+    // Generate the response body
     if (client.response.filePath) {
       let stream: fs.ReadStream = fs.createReadStream(client.response.filePath, { start, end })
         .on('open', () => stream.pipe(<any>res))

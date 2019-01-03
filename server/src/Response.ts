@@ -1,6 +1,5 @@
 import { OutgoingHttpHeaders } from 'http'
 import { Router } from '@red5/router'
-import { Client } from '@red5/server'
 
 export class Response {
 
@@ -10,7 +9,7 @@ export class Response {
   // private _media: MediaFile | null = null
   private _buffer: Buffer | null = null
 
-  public constructor(private client: Client, private _body: string = '', private _headers: OutgoingHttpHeaders = {
+  public constructor(private _body: string = '', private _headers: OutgoingHttpHeaders = {
     'Content-Type': 'text/html'
   }, private _code: number = 200, private _length: number = 0) { }
 

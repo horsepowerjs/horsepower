@@ -38,6 +38,8 @@ wait
 printf "${CYAN}Linking the middleware to the server${NC}\n"
 cd ../middleware
 npm link @red5/server &
+cd ../router
+npm link @red5/middleware &
 wait
 
 # Link the test server to the dependencies

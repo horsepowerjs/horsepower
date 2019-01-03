@@ -1,6 +1,7 @@
 import { UrlWithStringQuery } from 'url'
 import * as path from 'path'
-import { RouterOptions, RequestMethod, Router } from './Router';
+import { RouterOptions, RequestMethod, Router } from './Router'
+import { Middleware } from '@red5/middleware'
 
 export class Route {
 
@@ -56,6 +57,14 @@ export class Route {
   public name(name: string) {
     if (Router.findByName(name)) throw new Error('Route name "' + name + '" already exists')
     this._name = name
+    return this
+  }
+
+  public middleware(...args: (Middleware | string)[]) {
+    if (!this.routeOptions.middleware) this.routeOptions.middleware = []
+    args.forEach(arg => {
+      this.routeOptions.middleware && this.routeOptions.middleware.push(arg)
+    })
     return this
   }
 

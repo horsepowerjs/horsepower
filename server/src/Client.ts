@@ -34,7 +34,7 @@ export class Client {
   public constructor(req: IncomingMessage, body: string) {
     this._get = querystring.parse(parse(req.url || '').query || '')
     this.ajax = req.headers['x-requested-with'] == 'XMLHttpRequest'
-    this._response = new Response(this)
+    this._response = new Response()
     this._headers = req.headers
     this._id = (Math.random() * 10e15).toString(36)
 
@@ -124,6 +124,9 @@ export class Client {
       get<T>(key: string, defaultValue: any = ''): T {
         let header = $this._headers[key.toLowerCase()]
         return header || defaultValue
+      },
+      has(key: string) {
+        return this.get<string>(key).length > 0
       },
       is(key: string, value?: any) {
         let v = this.get(key)
