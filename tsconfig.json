@@ -6,9 +6,11 @@
     "declaration": true,
     "strict": true,
     "removeComments": false,
-    "inlineSourceMap": true
+    "inlineSourceMap": true,
+    "skipLibCheck": true
   },
   "exclude": [
-    "lib"
+    "lib",
+    "types"
   ]
 }

@@ -13,7 +13,7 @@ export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete'
 // }
 
 export interface RouterOptions {
-  middleware?: (Middleware | string)[]
+  middleware?: ({ new(): Middleware } | Middleware | string)[]
 }
 
 export type RouteCallback = string | Function | Promise<Function | string | void>

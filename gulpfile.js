@@ -1,8 +1,8 @@
 const path = require('path')
-const fs = require('fs')
 const gulp = require('gulp')
 const ts = require('gulp-typescript')
 const sourcemaps = require('gulp-sourcemaps')
+const rimraf = require('rimraf')
 
 const projects = {
   red5: './core',
@@ -14,8 +14,15 @@ const projects = {
   middleware: './middleware'
 }
 
+const tasks = ['router', 'template', 'storage', 'session', 'server', 'middleware']
+
+/**
+ * Builds the project
+ * @param {string} projectRoot
+ * @returns {NodeJS.ReadWriteStream}
+ */
 function makeProject(projectRoot) {
-  var tsProject = ts.createProject(path.join(projectRoot, 'tsconfig.json'))
+  let tsProject = ts.createProject(path.join(projectRoot, 'tsconfig.json'))
   let tsResult = tsProject.src()
     .pipe(sourcemaps.init())
     .pipe(tsProject())
@@ -27,20 +34,36 @@ function makeProject(projectRoot) {
     }))
 }
 
-// gulp.task('red5', () => makeProject(projects.red5))
-gulp.task('router', () => makeProject(projects.router))
-gulp.task('server', () => makeProject(projects.server))
-gulp.task('storage', () => makeProject(projects.storage))
-gulp.task('session', () => makeProject(projects.session))
-gulp.task('template', () => makeProject(projects.template))
-gulp.task('middleware', () => makeProject(projects.middleware))
+/**
+ * @param {string} projectRoot
+ * @returns {Promise<boolean>}
+ */
+function deleteTypes(projectRoot) {
+  return new Promise(resolve => {
+    try {
+      rimraf.sync(path.join(projectRoot, 'types'))
+      resolve(true)
+    } catch (e) {
+      resolve(false)
+    }
+  })
+}
 
-gulp.task('build', gulp.series(['router', 'template', 'storage', 'session', 'server', 'middleware', () => {
+// gulp.task('red5', () => makeProject(projects.red5))
+gulp.task('router', () => deleteTypes(projects.router) && makeProject(projects.router))
+gulp.task('server', () => deleteTypes(projects.server) && makeProject(projects.server))
+gulp.task('storage', () => deleteTypes(projects.storage) && makeProject(projects.storage))
+gulp.task('session', () => deleteTypes(projects.session) && makeProject(projects.session))
+gulp.task('template', () => deleteTypes(projects.template) && makeProject(projects.template))
+gulp.task('middleware', () => deleteTypes(projects.middleware) && makeProject(projects.middleware))
+
+gulp.task('build:watch', gulp.series([...tasks, () => {
   gulp.watch('./router/src/**', gulp.series('router'))
   gulp.watch('./server/src/**', gulp.series('server'))
   gulp.watch('./storage/src/**', gulp.series('storage'))
   gulp.watch('./session/src/**', gulp.series('session'))
   gulp.watch('./template/src/**', gulp.series('template'))
   gulp.watch('./middleware/src/**', gulp.series('middleware'))
-  // gulp.watch('./red5/src/**', gulp.series('red5'))
 }]))
+
+gulp.task('build', gulp.series(...tasks))

@@ -6,7 +6,7 @@ import * as querystring from 'querystring'
 import { IncomingMessage, IncomingHttpHeaders } from 'http'
 
 import { RequestMethod, Route } from '@red5/router'
-import { Response } from '@red5/server'
+import { Response } from '.'
 
 export interface FileType {
   key: string

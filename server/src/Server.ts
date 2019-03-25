@@ -7,10 +7,11 @@ import * as url from 'url'
 import { Template } from './Template'
 import * as helpers from './helper'
 
-import { Router } from '@red5/router'
+import { Router, Route } from '@red5/router'
 import { Storage, StorageConfig } from '@red5/storage'
 import { MiddlewareManager } from '@red5/middleware'
-import { Client, Response } from '@red5/server'
+import { Client, Response } from '.'
+
 
 export interface RouterSettings {
   controllers: string

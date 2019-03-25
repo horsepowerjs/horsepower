@@ -1,7 +1,7 @@
 {
     "name": "@red5/router",
     "version": "1.0.0",
-    "description": "",
+    "description": "Router for the red5 http server.",
     "main": "lib/index.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",

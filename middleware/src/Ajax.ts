@@ -7,7 +7,7 @@ import { Middleware } from '.'
  * the header "x-requested-with: XMLHttpRequest".
  */
 export class EnforceAjax implements Middleware {
-  handle(client: Client) {
+  public handle(client: Client) {
     return client.ajax === true
   }
 }
@@ -18,7 +18,7 @@ export class EnforceAjax implements Middleware {
  * the header "x-requested-with: XMLHttpRequest".
  */
 export class EnforceHttp implements Middleware {
-  handle(client: Client) {
+  public handle(client: Client) {
     return client.ajax === false
   }
 }

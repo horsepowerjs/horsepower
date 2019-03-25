@@ -60,7 +60,7 @@ export class Route {
     return this
   }
 
-  public middleware(...args: (Middleware | string)[]) {
+  public middleware(...args: ({ new(): Middleware } | Middleware | string)[]) {
     if (!this.routeOptions.middleware) this.routeOptions.middleware = []
     args.forEach(arg => {
       this.routeOptions.middleware && this.routeOptions.middleware.push(arg)
