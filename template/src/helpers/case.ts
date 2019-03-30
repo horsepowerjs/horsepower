@@ -3,6 +3,12 @@ import { step, replaceHolders } from '.';
 import { Mixin } from './mixin';
 import { TemplateData } from '..';
 
+// <case :="i">
+//   <when :="1">...</when>
+//   <when :="2">...</when>
+//   <default>...</default>
+// </case>
+
 export function caseBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   if (!element.ownerDocument) return
   let nodes: Element[] = Array.from(element.querySelectorAll('when, default'))

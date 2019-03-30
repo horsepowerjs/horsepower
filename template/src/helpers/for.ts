@@ -3,6 +3,10 @@ import { Template } from './extend'
 import { Mixin } from './mixin';
 import { TemplateData } from '..';
 
+// <for :="i from 10 through 15">{{$i}}</for> <!-- 10,11,12,13,14,15 -->
+// <for :="i from 10 thru 15">{{$i}}</for>    <!-- 10,11,12,13,14,15 -->
+// <for :="i from 10 to 15">{{$i}}</for>      <!-- 10,11,12,13,14 -->
+
 export async function forBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let query = element.getAttribute(':')
   if (query && element.ownerDocument) {

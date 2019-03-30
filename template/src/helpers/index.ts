@@ -25,7 +25,7 @@ export function getData(text: string, data: TemplateData, scope?: string) {
 }
 
 export function getVariables(string: string) {
-  let match = (string.match(/\{\{.+?\}\}/) || [])[0]
+  let match = ((string || '').match(/\{\{.+?\}\}/) || [])[0] || ''
   return [...new Set(match.match(/\$(?!(\d|\.))[.\w]+/g) || [])]
 }
 

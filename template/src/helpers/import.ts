@@ -4,6 +4,8 @@ import { fragmentFromFile, step } from '.';
 import { Mixin } from './mixin';
 import { TemplateData } from '..';
 
+// <import file="../abc/123"/>
+
 export async function importBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let inclFileName = element.getAttribute('file')
   if (inclFileName && element.ownerDocument && inclFileName.length > 0) {

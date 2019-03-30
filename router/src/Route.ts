@@ -20,7 +20,7 @@ export class Route {
   public constructor(
     public readonly pathAlias: string | RegExp,
     public readonly method: RequestMethod,
-    public readonly callback: string | Function//((client: Client) => void | Response)
+    public readonly callback: string | Function | null//((client: Client) => void | Response)
   ) {
     if (typeof this.pathAlias == 'string') {
       this.pathAlias = this.unixJoin(this.pathAlias).replace(/\/$/g, '')

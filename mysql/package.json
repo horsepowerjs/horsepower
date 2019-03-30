@@ -1,7 +1,7 @@
 {
-    "name": "@red5/middleware",
+    "name": "@red5/mysql",
     "version": "1.0.0",
-    "description": "Middleware for the red5 http server.",
+    "description": "Mysql for the red5 http server.",
     "main": "lib/index.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
@@ -9,10 +9,15 @@
     },
     "types": "types/index.d.ts",
     "author": "",
-    "dependencies": {},
+    "dependencies": {
+        "mysql": "^2.16.0"
+    },
     "license": "ISC",
     "files": [
         "lib",
         "types"
-    ]
+    ],
+    "devDependencies": {
+        "@types/mysql": "^2.15.5"
+    }
 }

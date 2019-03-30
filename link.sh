@@ -13,6 +13,7 @@ npm rm -g @red5/server &
 npm rm -g @red5/session &
 npm rm -g @red5/storage &
 npm rm -g @red5/template &
+npm rm -g @red5/mysql &
 wait
 
 # Generate the links
@@ -23,6 +24,7 @@ npm link ./session &
 npm link ./storage &
 npm link ./template &
 npm link ./middleware &
+npm link ./mysql &
 wait
 
 # Link the server to the dependencies

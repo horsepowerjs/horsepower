@@ -2,6 +2,8 @@ import * as path from 'path'
 import { JSDOM } from 'jsdom'
 import { parseFile } from './files';
 
+// <extends file="../abc/def">
+
 export interface Template {
   dom: JSDOM
   document: Document

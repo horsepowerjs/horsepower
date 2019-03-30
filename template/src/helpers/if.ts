@@ -3,6 +3,10 @@ import { step, replaceHolders } from '.';
 import { Mixin } from './mixin';
 import { TemplateData } from '..';
 
+// <if :="i == 0">...</if>
+// <elif :="i == 1">...</elif>
+// <else>...</else>
+
 export function ifBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   if (!element.ownerDocument) return
   let nodes: Element[] = [element]

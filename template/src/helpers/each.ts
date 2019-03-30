@@ -3,6 +3,14 @@ import { Template } from './extend'
 import { Mixin } from './mixin'
 import { TemplateData, Nullable } from '..'
 
+// <each :="[key, value] in {{$items}}">
+//   <h1>{{$key}} -> {{$value}}</h1>
+// </each>
+//
+// <each :="value in {{$items}}">
+//   <h1>{{$value}}</h1>
+// </each>
+
 export function getScopeData(search: string, data: TemplateData, scope?: Nullable<string>, key?: Nullable<string | number>) {
   let dataToSearch = data.originalData
   // console.log('scope', scope)
@@ -59,9 +67,9 @@ export async function eachBlock(root: Template, element: Element, data: Template
     // console.log(scope, breadcrumb, data)
     let dataObject = getScopeData(breadcrumb.join('.'), data, scope)
 
-    console.log(dataObject, scope)
+    // console.log(dataObject, scope)
     data.scopes.push({ reference: key, data: dataObject })
-    console.log(JSON.stringify(data.scopes))
+    // console.log(JSON.stringify(data.scopes))
 
     // Find values between "{{" and "}}" and not between html tags "<" and ">"
     // Starts with a "$" and not followed by a "\d" or "."

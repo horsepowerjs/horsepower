@@ -7,10 +7,11 @@ import * as url from 'url'
 import { Template } from './Template'
 import * as helpers from './helper'
 
-import { Router, Route } from '@red5/router'
+import { Router } from '@red5/router'
 import { Storage, StorageConfig } from '@red5/storage'
 import { MiddlewareManager } from '@red5/middleware'
 import { Client, Response } from '.'
+import { env } from './helper';
 
 
 export interface RouterSettings {
@@ -167,41 +168,52 @@ export class Server {
       let resp: Response | null = null
       if (routeInfo && routeInfo.route && routeInfo.callback) {
         client.setRoute(routeInfo.route)
-        // Run the pre request middleware
-        let preResult = await MiddlewareManager.run(routeInfo.route, client, 'pre')
+        // Run the pre request middleware `MyMiddleware.handle()`
+        let preResult = await MiddlewareManager.run(routeInfo.route, <Client>client, 'pre')
         if (preResult !== true && !(preResult instanceof Response)) {
           await this.getErrorPage(client, 400)
           return this.send(client, req, res)
         }
         // Run the controller
         resp = await routeInfo.callback(client)
-        // Run the post request middleware
-        let postResult = await MiddlewareManager.run(routeInfo.route, client, 'post')
+        // Run the post request middleware `MyMiddleware.postHandle()`
+        let postResult = await MiddlewareManager.run(routeInfo.route, <Client>client, 'post')
         if (postResult !== true && !(postResult instanceof Response)) {
           await this.getErrorPage(client, 400)
           return this.send(client, req, res)
         }
       }
 
-      // this.logRequest(req)
-      // if ((process.env.APP_ENV || 'production') != 'production') {
-      //   console.log((req.method || 'GET') + ' ' + (req.url || '/'))
-      // }
-
-      // await client.session.close()
-      if (!resp) {
-        await this.getErrorPage(client, 400)
-        await this.send(client, req, res)
-      }
-      else await this.send(client, req, res)
+      !resp && await this.getErrorPage(client, 400)
+      await this.send(client, req, res)
     })
   }
 
-
+  /**
+   * Sends a debug page that displays debug data.
+   * If the app is in production mode, a 500 error page will be sent.
+   *
+   * @static
+   * @param {Client} client
+   * @param {{ [key: string]: any }} data
+   * @returns
+   * @memberof Server
+   */
   public static async sendDebugPage(client: Client, data: { [key: string]: any }) {
-    return await this.getErrorPage(client, 1000, data)
+    const prod = env('APP_ENV', 'production') == 'production'
+    return await this.getErrorPage(client, !prod ? 1000 : 500, !prod ? data : {})
   }
 
+  /**
+   * Sets the error page that should be displayed if something were to go wrong in the request.
+   *
+   * @static
+   * @param {Client} client
+   * @param {number} code
+   * @param {{ [key: string]: any }} [data={}]
+   * @returns {Promise<Response>}
+   * @memberof Server
+   */
   public static async getErrorPage(client: Client, code: number, data: { [key: string]: any } = {}): Promise<Response> {
     // Read the file
     let filePath = path.join(__dirname, '../error-pages/', code + '.html')
@@ -224,17 +236,27 @@ export class Server {
     return client.response.setCode(code).setBody(file)
   }
 
+  /**
+   * Logs the request to the console if the environment is not in production
+   *
+   * @private
+   * @static
+   * @param {http.IncomingMessage} req The http request
+   * @param {Client} client The client
+   * @memberof Server
+   */
   private static logRequest(req: http.IncomingMessage, client: Client) {
-    if ((process.env.APP_ENV || 'production') != 'production') {
+    if (env('APP_ENV', 'production') != 'production') {
       let msg = (req.method || 'GET') + ' ' + (req.url || '/')
+      let d = new Date()
       if ([
         100, 101, 102,
         200, 201, 202, 203, 204, 205, 206, 207, 208,
         300, 301, 302, 303, 304, 305, 306, 307, 308
       ].includes(client.response.code)) {
-        console.log('%s %s', client.response.code, msg)
+        console.log('[%s] %s %s', d.toUTCString(), client.response.code, msg)
       } else {
-        console.error('\x1b[31m%s %s\x1b[0m', client.response.code, msg)
+        console.error('\x1b[31m[%s] %s %s\x1b[0m', d.toUTCString(), client.response.code, msg)
       }
     }
   }
@@ -263,7 +285,7 @@ export class Server {
     }
 
     // Execute the middleware termination commands
-    await MiddlewareManager.run(client.route, client, 'terminate')
+    await MiddlewareManager.run(client.route, <Client>client, 'terminate')
 
     // Write the response headers
     res.writeHead(client.response.code, client.response.headers)

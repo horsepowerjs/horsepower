@@ -11,27 +11,35 @@ const projects = {
   storage: './storage',
   session: './session',
   template: './template',
-  middleware: './middleware'
+  middleware: './middleware',
+  // Optional dependencies
+  mysql: './mysql'
 }
 
-const tasks = ['router', 'template', 'storage', 'session', 'server', 'middleware']
+const tasks = [
+  'router', 'middleware', 'template', 'storage', 'session', 'server',
+  // Optional dependencies
+  'mysql'
+]
 
 /**
  * Builds the project
  * @param {string} projectRoot
- * @returns {NodeJS.ReadWriteStream}
+ * @returns {Promise<boolean>}
  */
 function makeProject(projectRoot) {
-  let tsProject = ts.createProject(path.join(projectRoot, 'tsconfig.json'))
-  let tsResult = tsProject.src()
-    .pipe(sourcemaps.init())
-    .pipe(tsProject())
-  return tsResult.js
-    .pipe(sourcemaps.write())
-    .pipe(gulp.dest(path.join(projectRoot, 'lib')).on('end', () => {
-      tsResult.dts.pipe(gulp.dest(path.join(projectRoot, 'types')))
-      // gulp.src(path.join(projectRoot,'src/**/*.ts')).pipe(sourcemaps.init())
-    }))
+  return new Promise(resolve => {
+    let tsProject = ts.createProject(path.join(projectRoot, 'tsconfig.json'))
+    let tsResult = tsProject.src()
+      .pipe(sourcemaps.init())
+      .pipe(tsProject())
+    tsResult.js
+      .pipe(sourcemaps.write())
+      .pipe(gulp.dest(path.join(projectRoot, 'lib')).on('end', () => {
+        tsResult.dts.pipe(gulp.dest(path.join(projectRoot, 'types'))).on('end', () => resolve(true))
+        // gulp.src(path.join(projectRoot,'src/**/*.ts')).pipe(sourcemaps.init())
+      }))
+  })
 }
 
 /**
@@ -56,6 +64,8 @@ gulp.task('storage', () => deleteTypes(projects.storage) && makeProject(projects
 gulp.task('session', () => deleteTypes(projects.session) && makeProject(projects.session))
 gulp.task('template', () => deleteTypes(projects.template) && makeProject(projects.template))
 gulp.task('middleware', () => deleteTypes(projects.middleware) && makeProject(projects.middleware))
+// Optional dependencies
+gulp.task('mysql', () => deleteTypes(projects.mysql) && makeProject(projects.mysql))
 
 gulp.task('build:watch', gulp.series([...tasks, () => {
   gulp.watch('./router/src/**', gulp.series('router'))
@@ -64,6 +74,8 @@ gulp.task('build:watch', gulp.series([...tasks, () => {
   gulp.watch('./session/src/**', gulp.series('session'))
   gulp.watch('./template/src/**', gulp.series('template'))
   gulp.watch('./middleware/src/**', gulp.series('middleware'))
+  // Optional dependencies
+  gulp.watch('./mysql/src/**', gulp.series('mysql'))
 }]))
 
 gulp.task('build', gulp.series(...tasks))
