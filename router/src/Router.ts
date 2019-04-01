@@ -511,7 +511,6 @@ export class Router {
 
     // Get the route path
     let routePath = args.length > 1 ? args[0] : '/'
-
     // Create the new route
     let r: Route
     if (routePath instanceof RegExp) {

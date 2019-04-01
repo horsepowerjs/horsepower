@@ -40,15 +40,15 @@ export class MiddlewareManager {
     }
   }
 
-  private static async _runPreMiddleware(middleware: (Middleware | string)[], client: Client): Promise<boolean | Response> {
+  private static async _runPreMiddleware(middleware: ({ new(): Middleware } | Middleware | string)[], client: Client): Promise<boolean | Response> {
     for (let callback of middleware) {
       let result
       if (typeof callback == 'string') {
         let cb = this.parseStringMiddleware(callback)
         if (cb && cb.callback && cb.callback.handle) result = await cb.callback.handle(client, ...cb.params)
       } else {
-        if (!callback.handle) continue
-        result = await callback.handle(client)
+        if (!callback['handle']) continue
+        result = await callback['handle'](client)
       }
       if (result instanceof Response) return result
       if (!result) return false
@@ -56,15 +56,15 @@ export class MiddlewareManager {
     return true
   }
 
-  private static async _runPostMiddleware(middleware: (Middleware | string)[], client: Client): Promise<boolean | Response> {
+  private static async _runPostMiddleware(middleware: ({ new(): Middleware } | Middleware | string)[], client: Client): Promise<boolean | Response> {
     for (let callback of middleware) {
       let result
       if (typeof callback == 'string') {
         let cb = this.parseStringMiddleware(callback)
         if (cb && cb.callback && cb.callback.postHandle) result = await cb.callback.postHandle(client, ...cb.params)
       } else {
-        if (!callback.postHandle) continue
-        result = await callback.postHandle(client)
+        if (!callback['postHandle']) continue
+        result = await callback['postHandle'](client)
       }
       if (result instanceof Response) return result
       if (!result) return false
@@ -72,14 +72,14 @@ export class MiddlewareManager {
     return true
   }
 
-  private static async _runTerminateMiddleware(middleware: (Middleware | string)[], client: Client): Promise<boolean> {
+  private static async _runTerminateMiddleware(middleware: ({ new(): Middleware } | Middleware | string)[], client: Client): Promise<boolean> {
     for (let callback of middleware) {
       if (typeof callback == 'string') {
         let cb = this.parseStringMiddleware(callback)
         if (cb && cb.callback && cb.callback.terminate) await cb.callback.terminate(client, ...cb.params)
       } else {
-        if (!callback.terminate) continue
-        await callback.terminate(client)
+        if (!callback['terminate']) continue
+        await callback['terminate'](client)
       }
     }
     return true

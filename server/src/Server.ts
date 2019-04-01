@@ -119,7 +119,7 @@ export class Server {
 
   public static stop() {
     console.log('Red5 is shutting down')
-    this.instance.close((err: Error) => {
+    this.instance.close((err?: Error) => {
       if (err) {
         console.error(err)
         process.exit(1)

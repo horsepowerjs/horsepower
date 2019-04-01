@@ -10,7 +10,9 @@
     "types": "types/index.d.ts",
     "author": "",
     "license": "ISC",
-    "dependencies": {},
+    "dependencies": {
+        "@red5/middleware": "^1.0.0"
+    },
     "files": [
         "lib",
         "types"
