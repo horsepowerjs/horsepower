@@ -10,9 +10,8 @@ import * as helpers from './helper'
 import { Router } from '@red5/router'
 import { Storage, StorageConfig } from '@red5/storage'
 import { MiddlewareManager } from '@red5/middleware'
-import { Client, Response } from '.'
-import { env } from './helper';
-
+import { Client, Response, log } from '@red5/server'
+import { env } from './helper'
 
 export interface RouterSettings {
   controllers: string
@@ -30,7 +29,11 @@ export interface AppSettings {
   env?: string
   https?: https.ServerOptions | false
   chunkSize?: number
-  static?: string[]
+  static?: string[],
+  logs?: {
+    error?: string
+    access?: string
+  }
 }
 
 export interface Connection {
@@ -132,11 +135,12 @@ export class Server {
   private static request(req: http.IncomingMessage, res: http.ServerResponse) {
     let body = ''
     let urlInfo = url.parse('http://' + req.headers.host + (req.url || '/'))
+    let client = new Client(req)
     req.on('data', (data: Buffer) => {
       body += data.toString('binary')
     }).on('end', async (data: Buffer) => {
       if (data) body += data.toString('binary')
-      let client = new Client(req, body)
+      client.setBody(body)
 
       // Attempt to send the file from the public folder
       if (urlInfo.pathname) {
@@ -169,7 +173,7 @@ export class Server {
       if (routeInfo && routeInfo.route && routeInfo.callback) {
         client.setRoute(routeInfo.route)
         // Run the pre request middleware `MyMiddleware.handle()`
-        let preResult = await MiddlewareManager.run(routeInfo.route, <Client>client, 'pre')
+        let preResult = await MiddlewareManager.run(routeInfo.route, client, 'pre')
         if (preResult !== true && !(preResult instanceof Response)) {
           await this.getErrorPage(client, 400)
           return this.send(client, req, res)
@@ -177,7 +181,7 @@ export class Server {
         // Run the controller
         resp = await routeInfo.callback(client)
         // Run the post request middleware `MyMiddleware.postHandle()`
-        let postResult = await MiddlewareManager.run(routeInfo.route, <Client>client, 'post')
+        let postResult = await MiddlewareManager.run(routeInfo.route, client, 'post')
         if (postResult !== true && !(postResult instanceof Response)) {
           await this.getErrorPage(client, 400)
           return this.send(client, req, res)
@@ -186,6 +190,8 @@ export class Server {
 
       !resp && await this.getErrorPage(client, 400)
       await this.send(client, req, res)
+    }).on('error', (err) => {
+      log.error(err, client)
     })
   }
 
@@ -236,31 +242,6 @@ export class Server {
     return client.response.setCode(code).setBody(file)
   }
 
-  /**
-   * Logs the request to the console if the environment is not in production
-   *
-   * @private
-   * @static
-   * @param {http.IncomingMessage} req The http request
-   * @param {Client} client The client
-   * @memberof Server
-   */
-  private static logRequest(req: http.IncomingMessage, client: Client) {
-    if (env('APP_ENV', 'production') != 'production') {
-      let msg = (req.method || 'GET') + ' ' + (req.url || '/')
-      let d = new Date()
-      if ([
-        100, 101, 102,
-        200, 201, 202, 203, 204, 205, 206, 207, 208,
-        300, 301, 302, 303, 304, 305, 306, 307, 308
-      ].includes(client.response.code)) {
-        console.log('[%s] %s %s', d.toUTCString(), client.response.code, msg)
-      } else {
-        console.error('\x1b[31m[%s] %s %s\x1b[0m', d.toUTCString(), client.response.code, msg)
-      }
-    }
-  }
-
   private static async send(client: Client, req: http.IncomingMessage, res: http.ServerResponse) {
     let fileSize = client.response.contentLength
     let start = 0, end = fileSize - 1 < start ? start : fileSize - 1
@@ -285,12 +266,13 @@ export class Server {
     }
 
     // Execute the middleware termination commands
-    await MiddlewareManager.run(client.route, <Client>client, 'terminate')
+    await MiddlewareManager.run(client.route, client, 'terminate')
 
     // Write the response headers
     res.writeHead(client.response.code, client.response.headers)
 
-    this.logRequest(req, client)
+    log.access(client)
+    // log.error('test', client)
 
     // If the method is head or options no body should be sent
     if (client.method == 'head' || client.method == 'options') {

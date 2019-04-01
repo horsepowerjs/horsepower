@@ -21,27 +21,39 @@ export class Client {
   public readonly method: RequestMethod
   public readonly ajax: boolean = false
 
-  private readonly _post: any
+  private _post: any
   private readonly _get: any
   private readonly _files: FileType[] = []
   private readonly _headers: IncomingHttpHeaders
   private readonly _response: Response
   // private _helpers: Helpers = {}
   private _id: string
+  private _req: IncomingMessage
 
   public route!: Route
 
-  public constructor(req: IncomingMessage, body: string) {
+  public get request() { return this._req }
+
+  public constructor(req: IncomingMessage) {
+    this._req = req
     this._get = querystring.parse(parse(req.url || '').query || '')
     this.ajax = req.headers['x-requested-with'] == 'XMLHttpRequest'
     this._response = new Response()
     this._headers = req.headers
     this._id = (Math.random() * 10e15).toString(36)
+    this._post = {}
 
+    // Attempt to get the request type.
+    //   1. Check the post/get data for a '_method'
+    //   2. Check the request for a method
+    //   3. Fallback to a 'get' method
+    this.method = (this.data.request<string>('_method', null) || req.method || 'get').toLowerCase() as RequestMethod
+  }
+
+  public setBody(body: string) {
     let contentType = this.headers.get<string>('content-type')
     if (contentType.includes('boundary=')) {
       let [type, boundary] = contentType.split('boundary=')
-      this._post = {}
       body.split(new RegExp(`(--${boundary}|--${boundary}--)`)).forEach(item => {
         if (item.trim().toLowerCase().startsWith('content-disposition')) {
           item = item.trim()
@@ -73,13 +85,8 @@ export class Client {
         this._post = body
       }
     }
-
-    // Attempt to get the request type.
-    //   1. Check the post/get data for a '_method'
-    //   2. Check the request for a method
-    //   3. Fallback to a 'get' method
-    this.method = (this.data.request<string>('_method', null) || req.method || 'get').toLowerCase() as RequestMethod
   }
+
 
   public get path(): string {
     if (this.route) return this.route.path

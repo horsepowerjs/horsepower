@@ -29,16 +29,22 @@ const tasks = [
  */
 function makeProject(projectRoot) {
   return new Promise(resolve => {
-    let tsProject = ts.createProject(path.join(projectRoot, 'tsconfig.json'))
-    let tsResult = tsProject.src()
-      .pipe(sourcemaps.init())
-      .pipe(tsProject())
-    tsResult.js
-      .pipe(sourcemaps.write())
-      .pipe(gulp.dest(path.join(projectRoot, 'lib')).on('end', () => {
-        tsResult.dts.pipe(gulp.dest(path.join(projectRoot, 'types'))).on('end', () => resolve(true))
-        // gulp.src(path.join(projectRoot,'src/**/*.ts')).pipe(sourcemaps.init())
-      }))
+    rimraf(path.join(projectRoot, 'types'), (err) => {
+      if (err) {
+        console.error(err.message)
+        return resolve(false)
+      }
+      let tsProject = ts.createProject(path.join(projectRoot, 'tsconfig.json'))
+      let tsResult = tsProject.src()
+        .pipe(sourcemaps.init())
+        .pipe(tsProject())
+      tsResult.js
+        .pipe(sourcemaps.write())
+        .pipe(gulp.dest(path.join(projectRoot, 'lib')).on('end', () => {
+          tsResult.dts.pipe(gulp.dest(path.join(projectRoot, 'types'))).on('end', () => resolve(true))
+          // gulp.src(path.join(projectRoot,'src/**/*.ts')).pipe(sourcemaps.init())
+        })).on('end', () => resolve(true))
+    })
   })
 }
 
@@ -46,26 +52,25 @@ function makeProject(projectRoot) {
  * @param {string} projectRoot
  * @returns {Promise<boolean>}
  */
-function deleteTypes(projectRoot) {
-  return new Promise(resolve => {
-    try {
-      rimraf.sync(path.join(projectRoot, 'types'))
-      resolve(true)
-    } catch (e) {
-      resolve(false)
-    }
-  })
-}
+// function deleteTypes(projectRoot) {
+//   return new Promise(resolve => {
+//     try {
+//       rimraf.sync(path.join(projectRoot, 'types'))
+//       resolve(true)
+//     } catch (e) {
+//       resolve(false)
+//     }
+//   })
+// }
 
-// gulp.task('red5', () => makeProject(projects.red5))
-gulp.task('router', () => deleteTypes(projects.router) && makeProject(projects.router))
-gulp.task('server', () => deleteTypes(projects.server) && makeProject(projects.server))
-gulp.task('storage', () => deleteTypes(projects.storage) && makeProject(projects.storage))
-gulp.task('session', () => deleteTypes(projects.session) && makeProject(projects.session))
-gulp.task('template', () => deleteTypes(projects.template) && makeProject(projects.template))
-gulp.task('middleware', () => deleteTypes(projects.middleware) && makeProject(projects.middleware))
+gulp.task('router', () => makeProject(path.join(__dirname, projects.router)))
+gulp.task('server', () => makeProject(path.join(__dirname, projects.server)))
+gulp.task('storage', () => makeProject(path.join(__dirname, projects.storage)))
+gulp.task('session', () => makeProject(path.join(__dirname, projects.session)))
+gulp.task('template', () => makeProject(path.join(__dirname, projects.template)))
+gulp.task('middleware', () => makeProject(path.join(__dirname, projects.middleware)))
 // Optional dependencies
-gulp.task('mysql', () => deleteTypes(projects.mysql) && makeProject(projects.mysql))
+gulp.task('mysql', () => makeProject(path.join(__dirname, projects.mysql)))
 
 gulp.task('build:watch', gulp.series([...tasks, () => {
   gulp.watch('./router/src/**', gulp.series('router'))

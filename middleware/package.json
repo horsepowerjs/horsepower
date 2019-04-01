@@ -9,7 +9,10 @@
     },
     "types": "types/index.d.ts",
     "author": "",
-    "dependencies": {},
+    "dependencies": {
+        "@red5/server": "^1.0.0",
+        "@red5/router": "^1.0.0"
+    },
     "license": "ISC",
     "files": [
         "lib",

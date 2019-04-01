@@ -10,7 +10,7 @@ declare interface MiddlewareConfig {
 
 export class MiddlewareManager {
 
-  public static async run(theRoute: Route, client: Client, type: MiddlewareType = 'pre') {
+  public static async run(theRoute: Route, client: Client, type: MiddlewareType = 'pre'): Promise<boolean | Response> {
     // Execute the middleware that is attached to the route
     if (theRoute) {
       // Test the group middleware
@@ -38,6 +38,7 @@ export class MiddlewareManager {
       }
       return true
     }
+    return false
   }
 
   private static async _runPreMiddleware(middleware: ({ new(): Middleware } | Middleware | string)[], client: Client): Promise<boolean | Response> {
