@@ -1,12 +1,14 @@
 import * as mysql from 'mysql'
 import { configPath } from '@red5/server'
+import { QueryInfo } from '@red5/mysql'
 
-declare type DBValue = string | number | DBRaw
-declare type DBComp = '=' | '<' | '>' | '>=' | '<=' | '!=' | '<>'
-declare type DBSort = 'asc' | 'desc'
-declare type DBWhereType = 'and' | 'or'
-
-interface DBPaginate {
+export declare type DBValue = string | number | DBRaw
+export declare type DBComp = '=' | '<' | '>' | '>=' | '<=' | '!=' | '<>'
+export declare type DBSort = 'asc' | 'desc'
+export declare type DBWhereType = 'and' | 'or'
+export declare type DBWhereMatchAgainst = 'natural' | 'boolean' | 'expansion'
+export declare type RowDataPacket = mysql.Query['RowDataPacket']
+export interface DBPaginate {
   /**
    * The results for the current page
    *
@@ -35,6 +37,13 @@ interface DBPaginate {
    * @memberof DBPaginate
    */
   pages: number
+  /**
+   * The actual current page number
+   *
+   * @type {number}
+   * @memberof DBPaginate
+   */
+  page: number
   /**
    * The current starting offset of the result set (zero based)
    *
@@ -69,9 +78,16 @@ interface DBPaginate {
    * @memberof DBPaginate
    */
   lastPage: boolean
+  /**
+   * A test of whether or not this is the first page in the result set
+   *
+   * @type {boolean}
+   * @memberof DBPaginate
+   */
+  firstPage: boolean
 }
 
-interface DBConfig {
+export interface DBConfig {
   default?: boolean
   driver: string
   database: string
@@ -81,16 +97,16 @@ interface DBConfig {
   port?: number
 }
 
-interface DBConfigs {
+export interface DBConfigs {
   [key: string]: DBConfig
 }
 
-interface DBPool {
+export interface DBPool {
   name: string
   pool: mysql.Pool
 }
 
-class DBKeyVal {
+export class DBKeyVal {
   public constructor(
     public readonly column: string,
     public readonly comp: DBComp,
@@ -98,7 +114,8 @@ class DBKeyVal {
     public readonly type: DBWhereType = 'and'
   ) { }
 }
-class DBRaw {
+
+export class DBRaw {
   public constructor(
     public readonly value: string,
     public readonly replacements: any[] = [],
@@ -106,7 +123,7 @@ class DBRaw {
   ) { }
 }
 
-class DBBetween {
+export class DBBetween {
   public constructor(
     public readonly column: string,
     public readonly value1: any,
@@ -116,7 +133,7 @@ class DBBetween {
   ) { }
 }
 
-class DBIn {
+export class DBIn {
   public constructor(
     public readonly column: string,
     public readonly items: any[],
@@ -125,7 +142,17 @@ class DBIn {
   ) { }
 }
 
-class DBNull {
+export class DBMatchAgainst {
+  public constructor(
+    public readonly columns: string[],
+    public readonly search: string,
+    public readonly modifier: DBWhereMatchAgainst = 'natural',
+    public readonly alias: string = '',
+    public readonly type: DBWhereType = 'and'
+  ) { }
+}
+
+export class DBNull {
   public constructor(
     public readonly column: string,
     public readonly not: boolean,
@@ -133,36 +160,28 @@ class DBNull {
   ) { }
 }
 
-const operators = ['=', '<', '>', '>=', '<=', '!=', '<>']
-
 export class DB {
   private static _connectionPools: DBPool[] = []
   private static _configuration?: DBConfigs
 
+  private _connection?: mysql.PoolConnection
   private _pool?: mysql.Pool
   private _connName?: string
 
-  private _table?: string
-  private _limit?: number
-  private _limitStart?: number
-  private _distinct: boolean = false
+  private readonly _queryInfo: QueryInfo
 
-  private _groupBy: { column: string, sort: DBSort }[] = []
-  private _orderBy: { column: string, sort: DBSort }[] = []
-  private _where: (DBKeyVal | DBRaw | DBBetween | DBIn | DBNull)[] = []
-  private _having: (DBKeyVal | DBRaw | DBBetween | DBIn | DBNull)[] = []
-  private _select: (string | DBRaw)[] = []
-
-  private _placeholders: DBValue[] = []
+  private _isTransaction: boolean = false
 
   /**
    * DB should not be instantiated outside of itself.
    */
-  protected constructor() { }
+  protected constructor() {
+    this._queryInfo = new QueryInfo
+  }
 
   public static table(name: string) {
     let db = new DB
-    db._table = name
+    db._queryInfo.table = name
     return db
   }
 
@@ -173,7 +192,7 @@ export class DB {
     return this
   }
 
-  protected async connect(name: string | undefined) {
+  protected async _connect(name: string | undefined) {
     return new Promise(resolve => {
       // Get the configurations from file if it hasn't been read yet
       if (!DB._configuration) DB._configuration = require(configPath('db')) as DBConfigs
@@ -214,43 +233,164 @@ export class DB {
     })
   }
 
+  private _getConnection() {
+    return new Promise<mysql.PoolConnection>(async resolve => {
+      await this._connect(this._connName)
+      if (!this._pool) throw new Error(`No MySQL connection found for "${this._connName}"`)
+      this._pool.getConnection((err, connection) => {
+        // if (err) return resolve(connection)
+        this._connection = connection
+        resolve(connection)
+      })
+    })
+  }
+
   //////////////////////////////////////////////////////////////////////////////
   /// Begin: Methods that transform queries
   //////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * Set the name of the table to search
+   *
+   * @param {string} name
+   * @returns
+   * @memberof DB
+   */
   public table(name: string) {
-    this._table = name
+    this._queryInfo.table = name
     return this
   }
 
-  public limit(limit: number | undefined, offset: number | undefined = 0) {
-    this._limit = limit
-    this._limitStart = offset
+  /**
+   * The maximum number of results to return
+   *
+   * @param {(number | undefined)} limit
+   * @returns
+   * @memberof DB
+   */
+  public limit(limit: number | undefined) {
+    this._queryInfo.limit = parseInt((limit || 0).toString()) || undefined
     return this
   }
 
+  /**
+   * The starting query offset
+   *
+   * @param {(number | undefined)} offset
+   * @returns
+   * @memberof DB
+   */
+  public offset(offset: number | undefined) {
+    this._queryInfo.offset = parseInt((offset || 0).toString()) || undefined
+    return this
+  }
+
+  /**
+   * Adds an order to order by a specific column in ascending or descending order.
+   * * Items are sorted in the order that they are added.
+   *
+   * @param {string} column
+   * @param {DBSort} [sort='asc']
+   * @returns
+   * @memberof DB
+   */
   public orderBy(column: string, sort: DBSort = 'asc') {
-    this._orderBy.push({ column, sort })
+    this._queryInfo.addOrderBy({ column, sort })
     return this
   }
 
+  /**
+   * Overwrites the current order by with new values.
+   * * Items are sorted in the order that they are added.
+   * * Passing no parameters removes the sort completely.
+   *
+   * @param {...{ column: string, sort: DBSort }[]} value
+   * @returns
+   * @memberof DB
+   */
+  public setOrderBy(...value: { column: string, sort: DBSort }[]) {
+    this._queryInfo.orderBy = []
+    this._queryInfo.addOrderBy(...value)
+    return this
+  }
+
+  /**
+   * Adds a group for a specific column in ascending or descending order
+   * * Items are grouped in the order that they are added.
+   *
+   * @param {string} column
+   * @param {DBSort} [sort='asc']
+   * @returns
+   * @memberof DB
+   */
   public groupBy(column: string, sort: DBSort = 'asc') {
-    this._groupBy.push({ column, sort })
+    this._queryInfo.groupBy.push({ column, sort })
     return this
   }
 
+
+  /**
+   * Overwrites the current group by with new values.
+   * * Items are grouped in the order that they are added.
+   * * Passing no parameters removes the group completely.
+   *
+   * @param {...{ column: string, sort: DBSort }[]} value
+   * @returns
+   * @memberof DB
+   */
+  public setGroupBy(...value: { column: string, sort: DBSort }[]) {
+    this._queryInfo.groupBy = []
+    this._queryInfo.groupBy.push(...value)
+    return this
+  }
+
+  /**
+   * Only selects distinct rows for the result
+   *
+   * @returns
+   * @memberof DB
+   */
   public distinct() {
-    this._distinct = true
+    this._queryInfo.distinct = true
     return this
   }
 
-  public select(...column: (string | DBRaw)[]) {
-    this._select = this._select.concat(...column)
+  /**
+   * The columns to add to the current select statement
+   *
+   * @param {(...(string | DBRaw)[])} columns The columns to select
+   * @returns
+   * @memberof DB
+   */
+  public select(...columns: (string | DBRaw)[]) {
+    this._queryInfo.addSelect(...columns)
     return this
   }
 
-  public setSelect(...column: (string | DBRaw)[]) {
-    this._select = column
+  /**
+   * Clears the current select statement and resets it with these columns
+   *
+   * @param {(...(string | DBRaw)[])} columns The columns to set as the select
+   * @returns
+   * @memberof DB
+   */
+  public setSelect(...columns: (string | DBRaw | DBMatchAgainst)[]) {
+    this._queryInfo.select = columns
+    return this
+  }
+
+  /**
+   * A match against select statement to generate a score.
+   * * Add an `orderBy('score', 'desc')` (where `score` is the alias name) to order by this column.
+   *
+   * @param {string[]} columns The columns to match (Requires full-text indexes)
+   * @param {string} search The text string to search within the columns
+   * @param {string} [alias='score'] The alias of the score column defaults to 'score'
+   * @returns
+   * @memberof DB
+   */
+  public selectMatchAgainst(columns: string[], search: string, alias: string = 'score') {
+    this._queryInfo.addSelect(new DBMatchAgainst(columns, search, 'boolean', alias))
     return this
   }
 
@@ -259,7 +399,7 @@ export class DB {
   public where(raw: DBRaw): DB
   public where(...args: any[]): DB {
     if (args[0] instanceof DBRaw) {
-      this._where.push(args[0])
+      this._queryInfo.addWhere(args[0])
     } else {
       this._addFilter('where', 'and', ...args)
     }
@@ -274,44 +414,57 @@ export class DB {
   }
 
   public whereIn(column: string, items: any[]) {
-    this._where.push(new DBIn(column, items, false, 'and'))
+    this._queryInfo.addWhere(new DBIn(column, items, false, 'and'))
     // this._addWhere()'and', column, items)
     return this
   }
 
   public whereNotIn(column: string, items: any[]) {
-    this._where.push(new DBIn(column, items, true, 'and'))
+    this._queryInfo.addWhere(new DBIn(column, items, true, 'and'))
     // this._addWhere()'and', column, items)
     return this
   }
 
   public whereBetween(column: string, value1: any, value2: any, type: DBWhereType = 'and') {
-    this._where.push(new DBBetween(column, value1, value2, false, type))
+    this._queryInfo.addWhere(new DBBetween(column, value1, value2, false, type))
     return this
   }
 
   public whereNotBetween(column: string, value1: any, value2: any, type: DBWhereType = 'and') {
-    this._where.push(new DBBetween(column, value1, value2, true, type))
+    this._queryInfo.addWhere(new DBBetween(column, value1, value2, true, type))
     return this
   }
 
   public whereNull(column: string) {
-    this._where.push(new DBNull(column, false))
+    this._queryInfo.addWhere(new DBNull(column, false))
     return this
   }
 
   public whereNotNull(column: string) {
-    this._where.push(new DBNull(column, true))
+    this._queryInfo.addWhere(new DBNull(column, true))
     return this
   }
 
+  /**
+   * Match against where statement to run a full-text search
+   *
+   * @param {string[]} columns The columns to match (Requires full-text indexes)
+   * @param {string} search The text string to search within the columns
+   * @param {DBWhereMatchAgainst} modifier The type of search (natural, boolean, query expansion)
+   * @returns
+   * @memberof DB
+   */
+  public whereMatchAgainst(columns: string[], search: string, modifier: DBWhereMatchAgainst = 'natural') {
+    this._queryInfo.addWhere(new DBMatchAgainst(columns, search, modifier))
+    return this
+  }
 
   public having(column: string, comp: DBComp, value: DBValue): DB
   public having(column: string, value: DBValue): DB
   public having(raw: DBRaw): DB
   public having(...args: any[]): DB {
     if (args[0] instanceof DBRaw) {
-      this._having.push(args[0])
+      this._queryInfo.addHaving(args[0])
     } else {
       this._addFilter('having', 'and', ...args)
     }
@@ -335,8 +488,8 @@ export class DB {
     } else if (args.length == 3) {
       value = args[2]
     }
-    if (addTo == 'where') this._where.push(new DBKeyVal(column, comp, value, type))
-    else if (addTo == 'having') this._having.push(new DBKeyVal(column, comp, value, type))
+    if (addTo == 'where') this._queryInfo.addWhere(new DBKeyVal(column, comp, value, type))
+    else if (addTo == 'having') this._queryInfo.addHaving(new DBKeyVal(column, comp, value, type))
     return this
   }
 
@@ -344,138 +497,268 @@ export class DB {
   /// End: Methods that transform queries
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
-  /// Begin: Methods that initiate queries
+  /// Begin: Methods that initiate and run queries
   //////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Execute any mysql query (select, update, delete, insert, etc.)
+   *
+   * @param {string} query The query string to execute
+   * @param {...any[]} replacements Placeholder values to replace: `??` for fields; `?` for values
+   * @returns
+   * @memberof DB
+   */
+  public async query(query: string, ...replacements: any[]) {
+    return new Promise<RowDataPacket[]>(async resolve => {
+      let connection = !this._connection ? await this._getConnection() : this._connection
+      if (!connection) throw new Error('Cannot query without a connection')
+      console.log(query, '=>', replacements)
+      connection.query(query, replacements, (error, results: RowDataPacket[]) => {
+        if (!this._isTransaction) connection.release()
+        if (error) throw error
+        resolve(results)
+      })
+    })
+  }
+
+  public static async query(query: string, ...replacements: any[]) {
+    return await new DB().query(query, ...replacements)
+  }
 
   /**
    * Connects to the database if no connection is found then executes the query
    *
+   * @param {string} [query=''] An optional query (passing this value ignores the query builder)
    * @returns
    * @memberof DB
    */
   public async get() {
-    await this.connect(this._connName)
-    let query = this.buildSelectString()
-    console.log(query, '=>', this._placeholders)
-    return new Promise<any[]>(resolve => {
-      this._pool && this._pool.getConnection((err, connection) => {
-        if (err) return resolve([])
-        connection.query(query, this._placeholders, (error, results: any[]) => {
-          connection.release()
-          if (error) throw error
-          resolve(results)
-        })
+    let query = this._queryInfo.query
+    return await this.query(query, ...this._queryInfo.placeholders)
+  }
+
+  /**
+   * Begins a database transaction.
+   * If commit is not called, it will automatically get called after the callback.
+   *
+   * @static
+   * @param {(connection: DB) => void} callback The transaction to execute
+   * @memberof DB
+   * @returns {Promise<void>}
+   */
+  public static async transaction(callback: (db: DB) => void): Promise<void> {
+    let db = new DB
+    // Get a connection
+    let connection = await db._getConnection()
+    db._isTransaction = true
+    return new Promise<void>(resolve => {
+      // Begin the transaction
+      connection.beginTransaction(async () => {
+        await callback(db)
+        await db.commit()
+        db._isTransaction = false
+        connection.release()
+        resolve()
       })
-      // if (!this.pool) return resolve([])
+    })
+  }
+
+  /**
+   * Commits the transaction to the database.
+   * If there is an error committing the transaction, then the transaction will be rolled back.
+   *
+   * @returns {Promise<void>}
+   * @memberof DB
+   */
+  public async commit(): Promise<void> {
+    return new Promise<void>(resolve => {
+      if (!this._isTransaction) throw new Error('Cannot commit because a database transaction has not been started')
+      if (!this._connection) throw new Error('Cannot commit without a connection')
+      this._connection.commit(async err => {
+        if (err) await this.rollback()
+        resolve()
+      })
+    })
+  }
+
+  /**
+   * Rolls back the database transaction.
+   *
+   * @returns
+   * @memberof DB
+   * @returns {Promise<void>}
+   */
+  public async rollback(): Promise<void> {
+    return new Promise<void>(resolve => {
+      if (!this._isTransaction) throw new Error('Cannot rollback because a database transaction has not been started')
+      if (!this._connection) throw new Error('Cannot rollback without a connection')
+      this._connection.rollback(() => resolve())
+    })
+  }
+
+  /**
+   * Streams the results in chunks.
+   *
+   * @param {number} rows The maximum number of rows per chunk
+   * @param {(rows: any[]) => void} callback A callback to run on each chunk
+   * @returns {Promise<void>}
+   * @memberof DB
+   */
+  public async chunk(rows: number, callback: (rows: any[]) => void): Promise<void>
+  /**
+   * Streams the results in chunks of 10.
+   *
+   * @param {(rows: any[]) => void} callback A callback to run on each chunk
+   * @returns {Promise<void>}
+   * @memberof DB
+   */
+  public async chunk(callback: (rows: any[]) => void): Promise<void>
+  public async chunk(...args: (number | Function)[]): Promise<void> {
+    let callback = (args.length == 2 ? args[1] : args[0]) as Function
+    let rows = (args.length == 2 ? args[0] : 10) as number
+    let query = this._queryInfo.query
+    console.log(query, '=>', this._queryInfo.placeholders)
+    return new Promise<void>(async resolve => {
+      let connection = await this._getConnection()
+      let resultRows: any[] = []
+      // Send the results to the client
+      async function sendResults() {
+        connection.pause()
+        await callback(resultRows)
+        resultRows = []
+        connection.resume()
+      }
+      // Execute the query
+      connection.query(query, this._queryInfo.placeholders)
+        // Build the result array and send it when the array is long enough
+        .on('result', async (row: any) => {
+          resultRows.push(row)
+          resultRows.length == rows && await sendResults()
+        })
+        // Send the result array if we never got to the full length and there is no more results
+        .on('end', async () => {
+          resultRows.length > 0 && await sendResults()
+          resolve()
+        })
     })
   }
 
   /**
    * Gets the first row in the result set
    *
-   * @returns
+   * @returns {Promise<RowDataPacket>}
    * @memberof DB
    */
-  public async first() {
-    let s = this._limit, sl = this._limitStart
-    let row = (await this.limit(1, 0).get())[0]
-    this.limit(s, sl)
+  public async first(): Promise<RowDataPacket> {
+    let s = this._queryInfo.limit, sl = this._queryInfo.offset
+    let row = (await this.limit(1).offset(0).get())[0]
+    this.limit(s).offset(sl)
     return row
   }
 
   /**
-   * Executes a query multiple times incrementing the offset until no more results are found
+   * Executes a stored procedure.
    *
-   * @param {number} max
-   * @param {number} offset
-   * @param {(results: any[]) => void} callback
-   * @returns {Promise<DB>}
+   * @static
+   * @param {string} name The name of the stored procedure
+   * @param {...any[]} args The arguments passed to the stored procedure
+   * @returns
    * @memberof DB
    */
-  public async chunk(max: number, offset: number, callback: (results: any[]) => void): Promise<DB>
-  /**
-   * Executes a query multiple times incrementing the offset until no more results are found
-   *
-   * @param {number} max
-   * @param {(results: any[]) => void} callback
-   * @returns {Promise<DB>}
-   * @memberof DB
-   */
-  public async chunk(max: number, callback: (results: any[]) => void): Promise<DB>
-  public async chunk(...args: (number | Function)[]): Promise<DB> {
-    let count = 0
-    let max = args[0] as number
-    let offset = (args.length == 3 ? args[1] : 0) as number
-    let callback = (args.length == 3 ? args[2] : args[1]) as Function
-    let oLim = this._limit, oOff = this._limitStart
-    do {
-      // Set the limit for the next query
-      this.limit(max, offset)
-      // Get the results
-      let results = await this.get()
-      // Update the offset
-      offset += results.length
-      // Update the count
-      count = results.length
-      // Only run the callback if the result count is greater than 0
-      count > 0 && callback(await results)
-    } while (count == max && max > 0)
-
-    // Reset the original limit settings
-    this.limit(oLim, oOff)
-    return this
+  public static async call(name: string, ...args: any[]) {
+    return await DB.query(`call ??(${args.map(() => '?').join(',')})`, ...[name, ...args])
   }
 
   /**
    * Gets a count of results that would be found
    *
-   * @returns
+   * @returns {Promise<number>}
    * @memberof DB
    */
-  public async count() {
-    let select = this._select
+  public async count(): Promise<number> {
+    let select = this._queryInfo.select
     let count = (await this.setSelect(new DBRaw('count(*) as c')).get())[0]['c']
     this.setSelect(...select)
     return <Promise<number>>count
   }
 
-  public async max(column: string) {
-    let select = this._select
+  /**
+   * Gets the max value in a column
+   *
+   * @param {string} column
+   * @returns {Promise<number>}
+   * @memberof DB
+   */
+  public async max(column: string): Promise<number> {
+    let select = this._queryInfo.select
     let max = (await this.setSelect(new DBRaw('max(??) as m', [column])).get())[0]['m']
     this.setSelect(...select)
-    return <Promise<any>>max
+    return <Promise<number>>max
   }
 
-  public async min(column: string) {
-    let select = this._select
+  /**
+   * Gets the min value in a column
+   *
+   * @param {string} column
+   * @returns {Promise<number>}
+   * @memberof DB
+   */
+  public async min(column: string): Promise<number> {
+    let select = this._queryInfo.select
     let min = (await this.setSelect(new DBRaw('min(??) as m', [column])).get())[0]['m']
     this.setSelect(...select)
-    return <Promise<any>>min
+    return <Promise<number>>min
   }
 
-  public async avg(column: string) {
-    let select = this._select
+  /**
+   * Gets the avg value in a column
+   *
+   * @param {string} column
+   * @returns {Promise<number>}
+   * @memberof DB
+   */
+  public async avg(column: string): Promise<number> {
+    let select = this._queryInfo.select
     let avg = (await this.setSelect(new DBRaw('avg(??) as m', [column])).get())[0]['m']
     this.setSelect(...select)
     return <Promise<any>>avg
   }
 
-  public async sum(column: string) {
-    let select = this._select
+  /**
+   * Gets the sum of a column
+   *
+   * @param {string} column
+   * @returns {Promise<number>}
+   * @memberof DB
+   */
+  public async sum(column: string): Promise<number> {
+    let select = this._queryInfo.select
     let sum = (await this.setSelect(new DBRaw('sum(??) as s', [column])).get())[0]['s']
     this.setSelect(...select)
     return <Promise<any>>sum
   }
 
-  public async exists() {
-    let select = this._select
+  /**
+   * Checks if a row exists
+   *
+   * @returns {Promise<boolean>}
+   * @memberof DB
+   */
+  public async exists(): Promise<boolean> {
+    let select = this._queryInfo.select
     let len = (await this.setSelect(new DBRaw('1')).get()).length
     this.setSelect(...select)
     return len > 0
   }
 
-  public async doesntExist() {
-    let select = this._select
+  /**
+   * Checks if a row does not exist
+   *
+   * @returns {Promise<boolean>}
+   * @memberof DB
+   */
+  public async doesntExist(): Promise<boolean> {
+    let select = this._queryInfo.select
     let exists = await this.exists()
     this.setSelect(...select)
     return !exists
@@ -484,23 +767,25 @@ export class DB {
   /**
    * Gets the results with a limit and the total number of results if the limit were removed
    *
-   * @returns
+   * @returns {Promise<{results:RowDataPacket[],total:number}>}
    * @memberof DB
    */
-  public async calcFoundRows() {
+  public async calcFoundRows(): Promise<{ results: RowDataPacket[]; total: number; }> {
     // Get the original values
-    let limit = this._limit, limitStart = this._limitStart, select = this._select
+    let limit = this._queryInfo.limit, limitStart = this._queryInfo.offset, select = this._queryInfo.select, order = this._queryInfo.orderBy, trans = this._isTransaction
+    this._isTransaction = true
 
     // Get the results
     let results = await this.get()
 
     // Get the results without a limit and with a count(*)
-    this.limit(undefined, undefined).setSelect(new DBRaw('count(*) as c'))
-    let total = (await this.get())[0]['c']
+    this.limit(undefined).offset(undefined).setOrderBy().select(new DBRaw('count(*) as `red5_calc_found_rows`'))
+    // console.log(await this.get())
+    let total = (await this.get())[0]['red5_calc_found_rows']
 
     // Reset the values back to their original values
-    this.limit(limit, limitStart).setSelect(...select)
-
+    this.limit(limit).offset(limitStart).setOrderBy(...order).setSelect(...select)
+    this._isTransaction = trans
     // Return the data
     return { results, total }
   }
@@ -510,116 +795,54 @@ export class DB {
    *
    * @param {number} page The current page
    * @param {number} resultsPerPage The number of results per page
-   * @returns
+   * @param {boolean} enablePageRecalculation Re-runs the query if the page number is larger than the total page count returning the last page
+   * @returns {Promise<DBPaginate>}
    * @memberof DB
    */
-  public async paginate(page: number, resultsPerPage: number) {
+  public async paginate(page: number, resultsPerPage: number, enablePageRecalculation: boolean = true): Promise<DBPaginate> {
     // Set 'page' and 'resultsPerPage' to 1 if the value is less than 1 or contains non-digit values
-    page = page < 1 || !/\d+/.test(page.toString()) ? 1 : page
-    resultsPerPage = resultsPerPage < 1 || !/\d+/.test(resultsPerPage.toString()) ? 1 : resultsPerPage
+    page = parseInt((page < 1 || !/\d+/.test(page.toString()) ? 1 : page).toString())
+    resultsPerPage = parseInt((resultsPerPage < 1 || !/\d+/.test(resultsPerPage.toString()) ? 1 : resultsPerPage).toString())
 
     // Get the original values
-    let limit = this._limit, limitStart = this._limitStart, select = this._select
+    let limit = this._queryInfo.limit, limitStart = this._queryInfo.offset, select = this._queryInfo.select
 
     // Set the limit and get the query info
     let offset = (page - 1) * resultsPerPage
-    let info = await this.limit(resultsPerPage, offset).calcFoundRows()
+    let info = await this.limit(resultsPerPage).offset(offset).calcFoundRows()
+
+    // If the page is larger than the page count re-run
+    // the query with the correct page number
+    if (enablePageRecalculation && page > Math.ceil(info.total / resultsPerPage)) {
+      page = Math.ceil(info.total / resultsPerPage)
+      offset = (Math.ceil(info.total / resultsPerPage) - 1) * resultsPerPage
+      info = await this.limit(resultsPerPage).offset(offset).calcFoundRows()
+    }
 
     // Reset the values back to their original values
     // This happens in 'calcFoundRows', however we need to do it again
-    this.limit(limit, limitStart).setSelect(...select)
+    this.limit(limit).offset(limitStart).setSelect(...select)
 
     // Get the number of pages if 'resultsPerPage' is greater than '0'
     let pages = Math.ceil(info.total / resultsPerPage)
 
-    return <DBPaginate>{
+    return {
       results: info.results,
       count: info.results.length,
       total: info.total,
       pages,
-      offset,
-      range: { start: offset + 1, end: offset + info.results.length },
-      lastPage: pages == page
+      page,
+      offset: offset < 0 ? 0 : offset,
+      range: {
+        start: offset + 1 < 0 ? 0 : offset + 1,
+        end: offset + info.results.length < 0 ? 0 : offset + info.results.length
+      },
+      lastPage: pages === page,
+      firstPage: page === 1
     }
   }
 
   //////////////////////////////////////////////////////////////////////////////
-  /// End: Methods that initiate queries
+  /// End: Methods that initiate and run queries
   //////////////////////////////////////////////////////////////////////////////
-
-  public buildSelectString() {
-    if (!this._table) throw new Error('Table name not set')
-
-    this._placeholders = []
-    // Create the column list string
-    let columns = this._select.length == 0 ? '*' : this._select.map(i => {
-      if (i instanceof DBRaw) return i.value
-      if (/\(|\*|,|\)/.test(i)) return i
-      return '??'
-    }).join(', ')
-    this._placeholders.push(...(<string[]>this._select.filter(i => i instanceof DBRaw || !(/\(|\*|,|\)/.test(i)))))
-    this._placeholders = this._placeholders.reduce<DBValue[]>((arr, itm) => {
-      if (itm instanceof DBRaw) return arr.concat(itm.replacements)
-      return arr.concat(itm)
-    }, [])
-
-    // Create the initial select string
-    let str = [`select ${this._distinct ? 'distinct' : ''} ${columns} from ??`]
-    this._placeholders.push(this._table)
-
-    // If there are where items, build the where item list
-    if (this._where.length > 0) {
-      let where = this._getFilter(this._where)
-      str.push(`where ${where}`)
-    }
-
-    // If there is grouping group the items
-    if (this._groupBy.length > 0) {
-      str.push(`group by ${this._groupBy.map(i => `?? ${i.sort}`).join(', ')}`)
-      this._placeholders.push(...this._groupBy.map(i => i.column))
-    }
-
-    if (this._having.length > 0) {
-      let having = this._getFilter(this._having)
-      str.push(`having ${having}`)
-    }
-
-    // If there is ordering order the items
-    if (this._orderBy.length > 0) {
-      str.push(`order by ${this._orderBy.map(i => `?? ${i.sort}`).join(', ')}`)
-      this._placeholders.push(...this._orderBy.map(i => i.column))
-    }
-
-    // If there is a limit
-    if (this._limit && this._limit > 0) {
-      str.push(`limit ${this._limitStart || 0}, ${this._limit}`)
-    }
-    // console.log(str.join(' '))
-    return str.join(' ')
-  }
-
-  private _getFilter(filters: any[]) {
-    return filters.map((i, idx) => {
-      if (i instanceof DBRaw) {
-        this._placeholders.push(...i.replacements)
-        return i.value
-      } else if (i instanceof DBBetween) {
-        this._placeholders.push(i.column, i.value1, i.value2)
-        return `${idx == 0 ? '' : i.type} ?? ${i.not ? 'not' : ''} between ? and ?`
-      } else if (i instanceof DBIn) {
-        this._placeholders.push(i.column, ...i.items)
-        return `${idx == 0 ? '' : i.type} ?? ${i.not ? 'not' : ''} in(${i.items.map(v => '?').join(',')})`
-      } else if (i instanceof DBNull) {
-        this._placeholders.push(i.column)
-        return `${idx == 0 ? '' : i.type} ?? ${i.not ? 'not' : ''} null`
-      } else if (i instanceof DBKeyVal) {
-        this._placeholders.push(i.column, i.value)
-        return `${idx == 0 ? '' : i.type} ?? ${operators.includes(i.comp) ? i.comp : '='} ?`.trim()
-      }
-    }).join(' ')
-  }
-
-  // private tickItem(item: string) {
-  //   return item.replace(/(\w+)\b(?<!\bas)/g, '`$1`')
-  // }
 }

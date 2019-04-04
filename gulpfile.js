@@ -5,7 +5,6 @@ const sourcemaps = require('gulp-sourcemaps')
 const rimraf = require('rimraf')
 
 const projects = {
-  red5: './core',
   router: './router',
   server: './server',
   storage: './storage',
@@ -25,43 +24,32 @@ const tasks = [
 /**
  * Builds the project
  * @param {string} projectRoot
- * @returns {Promise<boolean>}
+ * @returns {Promise<void>}
  */
-function makeProject(projectRoot) {
+async function makeProject(projectRoot) {
+  let err = await new Promise(resolve => rimraf(path.join(projectRoot, 'types'), (err) => resolve(err)))
+  if (err) {
+    console.error(err.message)
+    // return resolve(false)
+  }
+
+  let tsResult = await new Promise(async resolve => {
+    let tsProject = ts.createProject(path.join(projectRoot, 'tsconfig.json'))
+    let tsResult = tsProject.src()
+      .pipe(sourcemaps.init())
+      .pipe(tsProject())
+      .on('finish', () => resolve(tsResult))
+  })
+
   return new Promise(resolve => {
-    rimraf(path.join(projectRoot, 'types'), (err) => {
-      if (err) {
-        console.error(err.message)
-        return resolve(false)
-      }
-      let tsProject = ts.createProject(path.join(projectRoot, 'tsconfig.json'))
-      let tsResult = tsProject.src()
-        .pipe(sourcemaps.init())
-        .pipe(tsProject())
-      tsResult.js
-        .pipe(sourcemaps.write())
-        .pipe(gulp.dest(path.join(projectRoot, 'lib')).on('end', () => {
-          tsResult.dts.pipe(gulp.dest(path.join(projectRoot, 'types'))).on('end', () => resolve(true))
-          // gulp.src(path.join(projectRoot,'src/**/*.ts')).pipe(sourcemaps.init())
-        })).on('end', () => resolve(true))
-    })
+    tsResult.js
+      .pipe(sourcemaps.write())
+      .pipe(gulp.dest(path.join(projectRoot, 'lib')).on('end', () => {
+        tsResult.dts.pipe(gulp.dest(path.join(projectRoot, 'types'))).on('finish', () => resolve())
+        // gulp.src(path.join(projectRoot,'src/**/*.ts')).pipe(sourcemaps.init())
+      }))
   })
 }
-
-/**
- * @param {string} projectRoot
- * @returns {Promise<boolean>}
- */
-// function deleteTypes(projectRoot) {
-//   return new Promise(resolve => {
-//     try {
-//       rimraf.sync(path.join(projectRoot, 'types'))
-//       resolve(true)
-//     } catch (e) {
-//       resolve(false)
-//     }
-//   })
-// }
 
 gulp.task('router', () => makeProject(path.join(__dirname, projects.router)))
 gulp.task('server', () => makeProject(path.join(__dirname, projects.server)))
@@ -73,12 +61,12 @@ gulp.task('middleware', () => makeProject(path.join(__dirname, projects.middlewa
 gulp.task('mysql', () => makeProject(path.join(__dirname, projects.mysql)))
 
 gulp.task('build:watch', gulp.series([...tasks, () => {
-  gulp.watch('./router/src/**', gulp.series('router'))
-  gulp.watch('./server/src/**', gulp.series('server'))
-  gulp.watch('./storage/src/**', gulp.series('storage'))
-  gulp.watch('./session/src/**', gulp.series('session'))
-  gulp.watch('./template/src/**', gulp.series('template'))
-  gulp.watch('./middleware/src/**', gulp.series('middleware'))
+  gulp.watch('./router/src/**/*.ts', gulp.series('router'))
+  gulp.watch('./server/src/**/*.ts', gulp.series('server'))
+  gulp.watch('./storage/src/**/*.ts', gulp.series('storage'))
+  gulp.watch('./session/src/**/*.ts', gulp.series('session'))
+  gulp.watch('./template/src/**/*.ts', gulp.series('template'))
+  gulp.watch('./middleware/src/**/*.ts', gulp.series('middleware'))
   // Optional dependencies
   gulp.watch('./mysql/src/**', gulp.series('mysql'))
 }]))

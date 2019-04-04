@@ -31,8 +31,14 @@ export interface AppSettings {
   chunkSize?: number
   static?: string[],
   logs?: {
-    error?: string
-    access?: string
+    error?: {
+      path?: string
+      maxSize?: number
+    }
+    access?: {
+      path?: string
+      maxSize?: number
+    }
   }
 }
 
@@ -63,11 +69,12 @@ export class Server {
     // Listen on the provided port
     this.instance.listen(this.app.port, () => {
       // Output the config settings
-      console.log('Red5 is now listening on port ' + this.app.port)
+      console.log(`Red5 is now listening on port "${this.app.port}" (Not yet accepting connections)`)
 
       // Config locations
       let views = require(helpers.configPath('view')) as ViewSettings
       let storage = require(helpers.configPath('storage')) as StorageConfig
+      let db = require(helpers.configPath('db')) as any
       let route = require(helpers.configPath('route')) as RouterSettings
 
       // Setup dependencies
@@ -84,8 +91,18 @@ export class Server {
       console.log(`    storage cloud: "${storage.cloud || ''}"`)
       console.log(`    disks:`)
       for (let i in storage.disks) console.log(`      ${i}: "${storage.disks[i].root || ''}"`)
+      if (db) {
+        console.log(`    databases:`)
+        for (let i in db) {
+          console.log(`      ${i}:`)
+          console.log(`        driver: "${db[i].driver || ''}"`)
+          console.log(`        default: "${db[i].default || false}"`)
+          console.log(`        connect: "--host=${db[i].hostname || 'localhost'} --db=${db[i].database} --user=${db[i].username} --pass=${db[i].password.replace(/./g, '*')}"`)
+        }
+      }
       console.log(`    routes: "${route.routes}"`)
       console.log('--- End Config Settings -----')
+      console.log(' ')
       try {
         console.log(`--- Start Route Setup -----`)
         require(route.routes)
@@ -139,57 +156,63 @@ export class Server {
     req.on('data', (data: Buffer) => {
       body += data.toString('binary')
     }).on('end', async (data: Buffer) => {
-      if (data) body += data.toString('binary')
-      client.setBody(body)
+      try {
+        if (data) body += data.toString('binary')
+        client.setBody(body)
 
-      // Attempt to send the file from the public folder
-      if (urlInfo.pathname) {
-        let filePath = path.join(helpers.applicationPath('public'), urlInfo.pathname)
-        try {
-          let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
-          if (stats.isFile()) {
-            client.response.setFile(filePath).setContentLength(stats.size)
-            return await this.send(client, req, res)
+        // Attempt to send the file from the public folder
+        if (urlInfo.pathname) {
+          let filePath = path.join(helpers.applicationPath('public'), urlInfo.pathname)
+          try {
+            let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
+            if (stats.isFile()) {
+              client.response.setFile(filePath).setContentLength(stats.size)
+              return await this.send(client, req, res)
+            }
+          } catch (e) { }
+
+          // If the file isn't found in the public folder attempt to find it in the defined static folder(s)
+          if (this.app.static && Array.isArray(this.app.static) && this.app.static.length > 0) {
+            for (let staticFolder in this.app.static) {
+              let filePath = path.join(staticFolder, urlInfo.pathname)
+              try {
+                let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
+                if (stats.isFile()) {
+                  client.response.setFile(filePath).setContentLength(stats.size)
+                  return await this.send(client, req, res)
+                }
+              } catch (e) { }
+            }
           }
-        } catch (e) { }
+        }
 
-        // If the file isn't found in the public folder attempt to find it in the defined static folder(s)
-        if (this.app.static && Array.isArray(this.app.static) && this.app.static.length > 0) {
-          for (let staticFolder in this.app.static) {
-            let filePath = path.join(staticFolder, urlInfo.pathname)
-            try {
-              let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
-              if (stats.isFile()) {
-                client.response.setFile(filePath).setContentLength(stats.size)
-                return await this.send(client, req, res)
-              }
-            } catch (e) { }
+        let routeInfo = await Router.route(urlInfo, client.method)
+        let resp: Response | null = null
+        if (routeInfo && routeInfo.route && routeInfo.callback) {
+          client.setRoute(routeInfo.route)
+          // Run the pre request middleware `MyMiddleware.handle()`
+          let preResult = await MiddlewareManager.run(routeInfo.route, client, 'pre')
+          if (preResult !== true && !(preResult instanceof Response)) {
+            await this.getErrorPage(client, 400)
+            return this.send(client, req, res)
+          }
+          // Run the controller
+          resp = await routeInfo.callback(client)
+          // Run the post request middleware `MyMiddleware.postHandle()`
+          let postResult = await MiddlewareManager.run(routeInfo.route, client, 'post')
+          if (postResult !== true && !(postResult instanceof Response)) {
+            await this.getErrorPage(client, 400)
+            return this.send(client, req, res)
           }
         }
-      }
 
-      let routeInfo = await Router.route(urlInfo, client.method)
-      let resp: Response | null = null
-      if (routeInfo && routeInfo.route && routeInfo.callback) {
-        client.setRoute(routeInfo.route)
-        // Run the pre request middleware `MyMiddleware.handle()`
-        let preResult = await MiddlewareManager.run(routeInfo.route, client, 'pre')
-        if (preResult !== true && !(preResult instanceof Response)) {
-          await this.getErrorPage(client, 400)
-          return this.send(client, req, res)
-        }
-        // Run the controller
-        resp = await routeInfo.callback(client)
-        // Run the post request middleware `MyMiddleware.postHandle()`
-        let postResult = await MiddlewareManager.run(routeInfo.route, client, 'post')
-        if (postResult !== true && !(postResult instanceof Response)) {
-          await this.getErrorPage(client, 400)
-          return this.send(client, req, res)
-        }
+        !resp && await this.getErrorPage(client, 400)
+        await this.send(client, req, res)
+      } catch (e) {
+        await this.getErrorPage(client, 500)
+        await this.send(client, req, res)
+        log.error(e, client)
       }
-
-      !resp && await this.getErrorPage(client, 400)
-      await this.send(client, req, res)
     }).on('error', (err) => {
       log.error(err, client)
     })
