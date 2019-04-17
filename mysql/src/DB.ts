@@ -1,6 +1,6 @@
 import * as mysql from 'mysql'
 import { configPath } from '@red5/server'
-import { QueryInfo } from '@red5/mysql'
+import { QueryInfo } from '.'
 
 export declare type DBValue = string | number | DBRaw
 export declare type DBComp = '=' | '<' | '>' | '>=' | '<=' | '!=' | '<>'

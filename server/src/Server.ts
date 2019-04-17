@@ -6,12 +6,13 @@ import * as path from 'path'
 import * as url from 'url'
 import { Template } from './Template'
 import * as helpers from './helper'
+import * as shell from 'shelljs'
 
 import { Router } from '@red5/router'
 import { Storage, StorageConfig } from '@red5/storage'
 import { MiddlewareManager } from '@red5/middleware'
-import { Client, Response, log } from '@red5/server'
-import { env } from './helper'
+import { Client, Response, log } from '.'
+import { env, getConfig, storagePath } from './helper'
 
 export interface RouterSettings {
   controllers: string
@@ -27,6 +28,9 @@ export interface AppSettings {
   port: number
   name?: string
   env?: string
+  session?: {
+    store?: 'file'
+  }
   https?: https.ServerOptions | false
   chunkSize?: number
   static?: string[],
@@ -82,6 +86,8 @@ export class Server {
       Template.setTemplatesRoot(views.path)
       Storage.setConfig(storage)
 
+      let appConfig = getConfig('app')
+
       // Log configuration settings
       console.log('--- Start Config Settings -----')
       console.log(`    environment: "${!env.error ? envPath : '.env file not found!'}"`)
@@ -89,6 +95,10 @@ export class Server {
       console.log(`    views: "${views.path}"`)
       console.log(`    storage default: "${storage.default}"`)
       console.log(`    storage cloud: "${storage.cloud || ''}"`)
+      console.log(`    storage session: "${appConfig.session && appConfig.session.store}"`)
+      if (appConfig.session && appConfig.session.store) {
+        shell.mkdir('-p', storagePath('framework/session'))
+      }
       console.log(`    disks:`)
       for (let i in storage.disks) console.log(`      ${i}: "${storage.disks[i].root || ''}"`)
       if (db) {
@@ -149,73 +159,83 @@ export class Server {
     })
   }
 
-  private static request(req: http.IncomingMessage, res: http.ServerResponse) {
-    let body = ''
+  private static async request(req: http.IncomingMessage, res: http.ServerResponse) {
     let urlInfo = url.parse('http://' + req.headers.host + (req.url || '/'))
     let client = new Client(req)
-    req.on('data', (data: Buffer) => {
-      body += data.toString('binary')
-    }).on('end', async (data: Buffer) => {
-      try {
-        if (data) body += data.toString('binary')
-        client.setBody(body)
 
-        // Attempt to send the file from the public folder
-        if (urlInfo.pathname) {
-          let filePath = path.join(helpers.applicationPath('public'), urlInfo.pathname)
-          try {
-            let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
-            if (stats.isFile()) {
-              client.response.setFile(filePath).setContentLength(stats.size)
-              return await this.send(client, req, res)
-            }
-          } catch (e) { }
-
-          // If the file isn't found in the public folder attempt to find it in the defined static folder(s)
-          if (this.app.static && Array.isArray(this.app.static) && this.app.static.length > 0) {
-            for (let staticFolder in this.app.static) {
-              let filePath = path.join(staticFolder, urlInfo.pathname)
-              try {
-                let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
-                if (stats.isFile()) {
-                  client.response.setFile(filePath).setContentLength(stats.size)
-                  return await this.send(client, req, res)
-                }
-              } catch (e) { }
-            }
-          }
-        }
-
-        let routeInfo = await Router.route(urlInfo, client.method)
-        let resp: Response | null = null
-        if (routeInfo && routeInfo.route && routeInfo.callback) {
-          client.setRoute(routeInfo.route)
-          // Run the pre request middleware `MyMiddleware.handle()`
-          let preResult = await MiddlewareManager.run(routeInfo.route, client, 'pre')
-          if (preResult !== true && !(preResult instanceof Response)) {
-            await this.getErrorPage(client, 400)
-            return this.send(client, req, res)
-          }
-          // Run the controller
-          resp = await routeInfo.callback(client)
-          // Run the post request middleware `MyMiddleware.postHandle()`
-          let postResult = await MiddlewareManager.run(routeInfo.route, client, 'post')
-          if (postResult !== true && !(postResult instanceof Response)) {
-            await this.getErrorPage(client, 400)
-            return this.send(client, req, res)
-          }
-        }
-
-        !resp && await this.getErrorPage(client, 400)
-        await this.send(client, req, res)
-      } catch (e) {
-        await this.getErrorPage(client, 500)
-        await this.send(client, req, res)
-        log.error(e, client)
-      }
-    }).on('error', (err) => {
-      log.error(err, client)
+    // Get the body of the request
+    let body = await new Promise<string>(resolve => {
+      let reqBody = ''
+      req.on('data', (data: Buffer) => {
+        reqBody += data.toString('binary')
+      }).on('end', async (data: Buffer) => {
+        if (data) reqBody += data.toString('binary')
+        resolve(reqBody)
+      }).on('error', (err) => {
+        log.error(err, client)
+        resolve(reqBody)
+      })
     })
+
+    try {
+      await client.init()
+      client.setBody(body)
+
+      // Attempt to send the file from the public folder
+      if (urlInfo.pathname) {
+        let filePath = path.join(helpers.applicationPath('public'), urlInfo.pathname)
+        try {
+          let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
+          if (stats.isFile()) {
+            client.response.setFile(filePath).setContentLength(stats.size)
+            return await this.send(client, req, res)
+          }
+        } catch (e) { }
+
+        // If the file isn't found in the public folder attempt to find it in the defined static folder(s)
+        if (this.app.static && Array.isArray(this.app.static) && this.app.static.length > 0) {
+          for (let staticFolder in this.app.static) {
+            let filePath = path.join(staticFolder, urlInfo.pathname)
+            try {
+              let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
+              if (stats.isFile()) {
+                client.response.setFile(filePath).setContentLength(stats.size)
+                return await this.send(client, req, res)
+              }
+            } catch (e) { }
+          }
+        }
+      }
+
+      let routeInfo = await Router.route(urlInfo, client.method)
+      let resp: Response | null = null
+      if (routeInfo && routeInfo.route && routeInfo.callback) {
+        client.setRoute(routeInfo.route)
+        // Run the pre request middleware `MyMiddleware.handle()`
+        if (!await this._runMiddleware(routeInfo, client, req, res, 'pre')) return
+        // Run the controller
+        resp = await routeInfo.callback(client)
+        // Run the post request middleware `MyMiddleware.postHandle()`
+        if (!await this._runMiddleware(routeInfo, client, req, res, 'post')) return
+      }
+
+      !resp && await this.getErrorPage(client, 400)
+      await this.send(client, req, res)
+    } catch (e) {
+      await this.getErrorPage(client, 500)
+      await this.send(client, req, res)
+      log.error(e, client)
+    }
+  }
+
+  private static async _runMiddleware(routeInfo, client: Client, req: http.IncomingMessage, res: http.ServerResponse, type: 'post' | 'pre') {
+    let result = await MiddlewareManager.run(routeInfo.route, client, type)
+    if (result !== true && !(result instanceof Response)) {
+      await this.getErrorPage(client, 400)
+      this.send(client, req, res)
+      return false
+    }
+    return true
   }
 
   /**
@@ -299,7 +319,10 @@ export class Server {
 
     // If the method is head or options no body should be sent
     if (client.method == 'head' || client.method == 'options') {
-      return res.end()
+      res.end()
+      // If there is a session end it
+      client.session && await client.session.end()
+      return
     }
 
     // Generate the response body
@@ -318,5 +341,7 @@ export class Server {
       }
       res.end()
     }
+    // If there is a session end it
+    client.session && await client.session.end()
   }
 }

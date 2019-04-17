@@ -47,12 +47,14 @@ export class MiddlewareManager {
       if (typeof callback == 'string') {
         let cb = this.parseStringMiddleware(callback)
         if (cb && cb.callback && cb.callback.handle) result = await cb.callback.handle(client, ...cb.params)
-      } else {
-        if (!callback['handle']) continue
-        result = await callback['handle'](client)
+      } else if (typeof callback == 'function') {
+        callback = new callback
+        if (callback.handle) {
+          result = await callback.handle(client)
+          if (result instanceof Response) return result
+          if (!result) return false
+        }
       }
-      if (result instanceof Response) return result
-      if (!result) return false
     }
     return true
   }
@@ -63,12 +65,14 @@ export class MiddlewareManager {
       if (typeof callback == 'string') {
         let cb = this.parseStringMiddleware(callback)
         if (cb && cb.callback && cb.callback.postHandle) result = await cb.callback.postHandle(client, ...cb.params)
-      } else {
-        if (!callback['postHandle']) continue
-        result = await callback['postHandle'](client)
+      } else if (typeof callback == 'function') {
+        callback = new callback
+        if (callback.postHandle) {
+          result = await callback.postHandle(client)
+          if (result instanceof Response) return result
+          if (!result) return false
+        }
       }
-      if (result instanceof Response) return result
-      if (!result) return false
     }
     return true
   }
@@ -78,9 +82,11 @@ export class MiddlewareManager {
       if (typeof callback == 'string') {
         let cb = this.parseStringMiddleware(callback)
         if (cb && cb.callback && cb.callback.terminate) await cb.callback.terminate(client, ...cb.params)
-      } else {
-        if (!callback['terminate']) continue
-        await callback['terminate'](client)
+      } else if (typeof callback == 'function') {
+        callback = new callback
+        if (callback.terminate) {
+          await callback.terminate(client)
+        }
       }
     }
     return true

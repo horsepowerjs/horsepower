@@ -3,6 +3,7 @@ import { Client, Response } from '@red5/server'
 export * from './Middleware'
 export * from './Ajax'
 export * from './Headers'
+export * from './Session'
 
 export interface Middleware {
   /**
@@ -12,7 +13,7 @@ export interface Middleware {
    * @param {any[]} args Additional arguments
    * @returns {boolean | Response}
    */
-  handle?(client: Client, ...args: any[]): boolean | Response
+  handle?(client: Client, ...args: any[]): boolean | Response | Promise<boolean | Response>
 
   /**
    * Handles the request after the controller

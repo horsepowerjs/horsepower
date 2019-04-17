@@ -86,7 +86,7 @@ export async function eachBlock(root: Template, element: Element, data: Template
           if (clone.nodeType == root.dom.window.Node.TEXT_NODE && clone.textContent) {
             // console.log(clone.textContent, clone.textContent.replace(new RegExp(`\\{\\{(\\$${key}).*?\\}\\}`, 'g'), 'asdf'))
             clone.textContent = clone.textContent.replace(regexp, (full, v) => {
-              console.log(v, key, k)
+              // console.log(v, key, k)
               return getScopeData(v, data, key, k)
             })
           } else if (clone instanceof root.dom.window.HTMLElement) {

@@ -69,6 +69,18 @@ export function env(key: string, fallback: string = '') {
 }
 
 /**
+ * Gets configuration settings
+ *
+ * @export
+ * @param {string} childPath The location of a particular config file
+ * @returns
+ */
+export function getConfig(childPath: string) {
+  let location = configPath(childPath)
+  return require(location)
+}
+
+/**
  * The application root path
  *
  * @returns

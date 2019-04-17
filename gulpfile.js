@@ -27,9 +27,9 @@ const tasks = [
  * @returns {Promise<void>}
  */
 async function makeProject(projectRoot) {
-  let err = await new Promise(resolve => rimraf(path.join(projectRoot, 'types'), (err) => resolve(err)))
+  let err = await new Promise(resolve => rimraf(path.join(projectRoot, 'types/*'), (err) => resolve(err)))
   if (err) {
-    console.error(err.message)
+    console.error('rimraf:', err.message)
     // return resolve(false)
   }
 
@@ -41,7 +41,7 @@ async function makeProject(projectRoot) {
       .on('finish', () => resolve(tsResult))
   })
 
-  return new Promise(resolve => {
+  return await new Promise(resolve => {
     tsResult.js
       .pipe(sourcemaps.write())
       .pipe(gulp.dest(path.join(projectRoot, 'lib')).on('end', () => {

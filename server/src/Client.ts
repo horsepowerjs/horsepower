@@ -7,6 +7,7 @@ import { IncomingMessage, IncomingHttpHeaders } from 'http'
 
 import { RequestMethod, Route } from '@red5/router'
 import { Response } from '.'
+import { Session } from '@red5/session'
 
 export interface FileType {
   key: string
@@ -21,7 +22,7 @@ export class Client {
   public readonly method: RequestMethod
   public readonly ajax: boolean = false
 
-  private _post: any
+  private _post: any = {}
   private readonly _get: any
   private readonly _files: FileType[] = []
   private readonly _headers: IncomingHttpHeaders
@@ -31,6 +32,7 @@ export class Client {
   private _req: IncomingMessage
 
   public route!: Route
+  public session?: Session
 
   public get request() { return this._req }
 
@@ -48,6 +50,12 @@ export class Client {
     //   2. Check the request for a method
     //   3. Fallback to a 'get' method
     this.method = (this.data.request<string>('_method', null) || req.method || 'get').toLowerCase() as RequestMethod
+  }
+
+  public async init() {
+    try {
+      this.session = await new Promise(r => import('@red5/session').then(v => r(new v.Session(<any>this))))
+    } catch (e) { }
   }
 
   public setBody(body: string) {
@@ -86,7 +94,6 @@ export class Client {
       }
     }
   }
-
 
   public get path(): string {
     if (this.route) return this.route.path

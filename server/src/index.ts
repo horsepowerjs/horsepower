@@ -36,7 +36,7 @@ export class log {
       let errorSize = app.logs.error.maxSize || undefined
       if (errorSize) {
         let stats = await new Promise<fs.Stats>(r => fs.stat(errorPath, (err, stats) => r(stats)))
-        if (stats.size >= errorSize) await new Promise(r => fs.truncate(errorPath, () => r()))
+        if (stats && stats.size >= errorSize) await new Promise(r => fs.truncate(errorPath, () => r()))
       }
       await new Promise(r => fs.appendFile(errorPath, `${errMsg}\n`, () => r()))
     }
@@ -77,7 +77,7 @@ export class log {
       let accessMsg = `${ip} -- [${d.toUTCString()}] -- "${msg} HTTP/${httpVersion}" ${client.response.code} -- "${agent}"`
       if (accessSize) {
         let stats = await new Promise<fs.Stats>(r => fs.stat(accessPath, (err, stats) => r(stats)))
-        if (stats.size >= accessSize) await new Promise(r => fs.truncate(accessPath, () => r()))
+        if (stats && stats.size >= accessSize) await new Promise(r => fs.truncate(accessPath, () => r()))
       }
       await new Promise(r => fs.appendFile(accessPath, `${accessMsg}\n`, () => r()))
     }
