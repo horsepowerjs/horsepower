@@ -77,3 +77,7 @@ wait
 cd ../mysql
 npm link @red5/server &
 wait
+
+cd ../session
+npm link @red5/server &
+wait

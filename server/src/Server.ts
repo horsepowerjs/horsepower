@@ -7,6 +7,7 @@ import * as url from 'url'
 import { Template } from './Template'
 import * as helpers from './helper'
 import * as shell from 'shelljs'
+import { serialize } from 'cookie'
 
 import { Router } from '@red5/router'
 import { Storage, StorageConfig } from '@red5/storage'
@@ -46,6 +47,15 @@ export interface AppSettings {
   }
 }
 
+export interface DBMysqlSettings {
+  driver: string, default?: boolean
+  database: string, username: string, password: string, hostname: string
+}
+
+export interface DBSettings {
+  [key: string]: DBMysqlSettings
+}
+
 export interface Connection {
   id: string
   client: Client
@@ -78,7 +88,7 @@ export class Server {
       // Config locations
       let views = require(helpers.configPath('view')) as ViewSettings
       let storage = require(helpers.configPath('storage')) as StorageConfig
-      let db = require(helpers.configPath('db')) as any
+      let db = require(helpers.configPath('db')) as DBSettings
       let route = require(helpers.configPath('route')) as RouterSettings
 
       // Setup dependencies
@@ -104,10 +114,17 @@ export class Server {
       if (db) {
         console.log(`    databases:`)
         for (let i in db) {
-          console.log(`      ${i}:`)
-          console.log(`        driver: "${db[i].driver || ''}"`)
-          console.log(`        default: "${db[i].default || false}"`)
-          console.log(`        connect: "--host=${db[i].hostname || 'localhost'} --db=${db[i].database} --user=${db[i].username} --pass=${db[i].password.replace(/./g, '*')}"`)
+          let driver = (db[i] || { driver: '' }).driver.toLowerCase()
+          switch (driver) {
+            case 'mysql':
+              let mysql = db[i] as DBMysqlSettings
+              let dbPass = mysql.password.split('').map((i, idx, arr) => idx == 0 || arr.length == idx + 1 ? i : '*').join('')
+              console.log(`      ${i}:`)
+              console.log(`        driver: "${mysql.driver || ''}"`)
+              console.log(`        default: "${mysql.default || false}"`)
+              console.log(`        connect: "--host=${mysql.hostname || 'localhost'} --db=${mysql.database} --user=${mysql.username} --pass=${dbPass}"`)
+              break
+          }
         }
       }
       console.log(`    routes: "${route.routes}"`)
@@ -306,21 +323,41 @@ export class Server {
     if (client.response.filePath) {
       let contentType = mime.lookup(client.response.filePath) || 'text/plain'
       client.response.setHeader('Content-Type', contentType)
+      if (end < 1) {
+        end = await new Promise(r => client.response.filePath && fs.stat(client.response.filePath, (err, stat) => r(stat.size)))
+      }
     }
 
     // Execute the middleware termination commands
     await MiddlewareManager.run(client.route, client, 'terminate')
 
+    // Set the cookies
+    let headers: [string, string][] = []
+    for (let c of client.response.cookies) {
+      headers.push(['Set-Cookie', serialize(c.key, c.value, {
+        domain: c.domain,
+        expires: c.expires,
+        path: c.path,
+        httpOnly: c.httpOnly,
+        maxAge: c.maxAge,
+        sameSite: c.sameSite,
+        secure: c.secure
+      })])
+    }
+    for (let h in client.response.headers) {
+      let header = client.response.headers[h]
+      if (header) headers.push([h, header.toString()])
+    }
+
     // Write the response headers
-    res.writeHead(client.response.code, client.response.headers)
+    res.writeHead(client.response.code, <any>headers)
 
+    // Log the request
     log.access(client)
-    // log.error('test', client)
 
-    // If the method is head or options no body should be sent
-    if (client.method == 'head' || client.method == 'options') {
+    // If the method type is of 'head' or 'options' no body should be sent
+    if (['head', 'options'].includes(client.method)) {
       res.end()
-      // If there is a session end it
       client.session && await client.session.end()
       return
     }
@@ -341,7 +378,6 @@ export class Server {
       }
       res.end()
     }
-    // If there is a session end it
     client.session && await client.session.end()
   }
 }

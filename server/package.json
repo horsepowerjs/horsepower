@@ -11,13 +11,16 @@
         "dotenv": "^5.0.1",
         "mime-types": "^2.1.20",
         "shelljs": "^0.8.3",
+        "cookie": "^0.3.1",
         "@red5/router": "^1.0.0",
         "@red5/storage": "^1.0.0",
         "@red5/middleware": "^1.0.0",
-        "@red5/template": "^1.0.0"
+        "@red5/template": "^1.0.0",
+        "@red5/session": "^1.0.0"
     },
     "devDependencies": {
         "@types/dotenv": "^4.0.3",
+        "@types/cookie": "^0.3.2",
         "@types/mime-types": "^2.1.0",
         "@types/shelljs": "^0.7.9"
     },
