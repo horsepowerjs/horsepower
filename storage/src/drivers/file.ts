@@ -9,7 +9,7 @@ export default class extends Storage {
    * Saves a file to storage if the file exists overwrite it.
    * If the folder path doesn't exist save will automatically create the path.
    *
-   * @param {string} filePath The path to the file
+   * @param {string} filePath The location of the file/directory
    * @param {(string | Buffer)} data The data to save
    * @returns {Promise<boolean>}
    */
@@ -40,7 +40,7 @@ export default class extends Storage {
   /**
    * Loads a file from file storage
    *
-   * @param {string} filePath
+   * @param {string} filePath The location of the file/directory
    * @returns {(Promise<string | Buffer>)}
    */
   public load(filePath: string): Promise<string | Buffer> {
@@ -56,7 +56,7 @@ export default class extends Storage {
   /**
    * Deletes a file from storage
    *
-   * @param {string} filePath
+   * @param {string} filePath The location of the file/directory
    * @returns {Promise<boolean>}
    */
   public delete(filePath: string): Promise<boolean> {
@@ -70,8 +70,8 @@ export default class extends Storage {
   /**
    * Prepends data to the beginning of a file
    *
-   * @param {string} filePath
-   * @param {(string | Buffer)} data
+   * @param {string} filePath The location of the file
+   * @param {(string | Buffer)} data The data to prepend to the beginning of the file
    * @returns {Promise<boolean>}
    */
   public prepend(filePath: string, data: string | Buffer): Promise<boolean> {
@@ -85,8 +85,8 @@ export default class extends Storage {
   /**
    * Appends data to the end of a file
    *
-   * @param {string} filePath
-   * @param {(string | Buffer)} data
+   * @param {string} filePath The location of the file
+   * @param {(string | Buffer)} data The data to append to the end of the file
    * @returns {Promise<boolean>}
    */
   public append(filePath: string, data: string | Buffer): Promise<boolean> {
@@ -94,10 +94,10 @@ export default class extends Storage {
   }
 
   /**
-   * Copies a file in on location to another location
+   * Copies a file or directory from one location to another location
    *
-   * @param {string} source
-   * @param {string} destination
+   * @param {string} source The original location of the file/directory
+   * @param {string} destination The new location of the file/directory
    * @returns {Promise<boolean>}
    */
   public copy(source: string, destination: string): Promise<boolean> {
@@ -111,16 +111,32 @@ export default class extends Storage {
   }
 
   /**
-   * Moves a file from one location to another location
+   * Moves a file or directory from one location to another location
    *
-   * @param {string} source
-   * @param {string} destination
+   * @param {string} source The original location of the file/directory
+   * @param {string} destination The new location of the file/directory
    * @returns {Promise<boolean>}
    */
   public move(source: string, destination: string): Promise<boolean> {
     return new Promise(async resolve => {
       fs.rename(path.join(this.root, source), path.join(this.root, destination), (err) => {
         resolve(!err)
+      })
+    })
+  }
+
+  /**
+   * Checks if a file or directory exists
+   *
+   * @param {string} filePath The location of the file/directory
+   * @returns {Promise<boolean>}
+   */
+  public exists(filePath: string): Promise<boolean> {
+    return new Promise(async resolve => {
+      fs.stat(path.join(this.root, filePath), (err, stat) => {
+        if (err) resolve(false)
+        else if (stat.isFile()) resolve(true)
+        else resolve(stat.isDirectory())
       })
     })
   }

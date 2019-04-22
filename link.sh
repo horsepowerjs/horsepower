@@ -80,4 +80,5 @@ wait
 
 cd ../session
 npm link @red5/server &
+npm link @red5/storage &
 wait

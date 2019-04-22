@@ -1,4 +1,5 @@
 import * as path from 'path'
+import { log } from '../'
 
 /**
  * Get the path to the storage folder
@@ -75,9 +76,14 @@ export function env(key: string, fallback: string = '') {
  * @param {string} childPath The location of a particular config file
  * @returns
  */
-export function getConfig(childPath: string) {
+export function getConfig<T>(childPath: string, main: boolean = false) {
   let location = configPath(childPath)
-  return require(location)
+  try {
+    return (main && require.main ? require.main.require(location) : require(location)) as T
+  } catch (e) {
+    // log.warn(`Could not find config "${location}"`)
+    return undefined
+  }
 }
 
 /**

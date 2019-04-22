@@ -5,7 +5,7 @@ export interface StorageDisk {
   root: string
 }
 
-export interface StorageConfig {
+export interface StorageSettings {
   default: string
   cloud?: string
   disks: { [key: string]: StorageDisk }
@@ -16,6 +16,7 @@ export abstract class Storage {
   public abstract load(filePath: string): Promise<string | Buffer>
   public abstract delete(filePath: string): Promise<boolean>
   public abstract prepend(filePath: string, data: string | Buffer): Promise<boolean>
+  public abstract exists(filePath: string): Promise<boolean>
   public abstract append(filePath: string, data: string | Buffer): Promise<boolean>
   public abstract copy(source: string, destination: string): Promise<boolean>
   public abstract move(source: string, destination: string): Promise<boolean>
@@ -25,9 +26,9 @@ export abstract class Storage {
     return this.disk.root
   }
 
-  private static config: StorageConfig | null = null
+  private static config: StorageSettings | null = null
 
-  public static setConfig(confFile: StorageConfig) {
+  public static setConfig(confFile: StorageSettings) {
     this.config = confFile
   }
 
@@ -47,9 +48,9 @@ export abstract class Storage {
     return this.mount().delete(path)
   }
 
-  // public static download(path: string) {
-  //   return this.mount().download(path)
-  // }
+  public static exists(path: string) {
+    return this.mount().exists(path)
+  }
 
   public static prepend(path: string, data: string | Buffer) {
     return this.mount().prepend(path, data)

@@ -1,10 +1,10 @@
-import { Client, Response, configPath } from '@red5/server'
+import { Client, Response, configPath, getConfig } from '@red5/server'
 import { Route } from '@red5/router'
 import { Middleware } from '.'
 
 declare type MiddlewareType = 'pre' | 'post' | 'terminate'
 
-declare interface MiddlewareConfig {
+declare interface MiddlewareSettings {
   namedMiddleware: { [key: string]: Middleware }
 }
 
@@ -94,8 +94,8 @@ export class MiddlewareManager {
 
   private static parseStringMiddleware(string: string) {
     try {
-      const refs: MiddlewareConfig = require.main && require.main.require(configPath('middleware'))
-      if (refs.namedMiddleware) {
+      const refs = getConfig<MiddlewareSettings>('middleware', true)
+      if (refs && refs.namedMiddleware) {
         const [, middleware, parameters] = Array.from(string.match(/(.+):(.+)/) || [])
         if (!refs.namedMiddleware[middleware]) return
         return {

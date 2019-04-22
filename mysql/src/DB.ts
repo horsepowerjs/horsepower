@@ -1,5 +1,5 @@
 import * as mysql from 'mysql'
-import { configPath } from '@red5/server'
+import { configPath, getConfig } from '@red5/server'
 import { QueryInfo } from '.'
 
 export declare type DBValue = string | number | DBRaw
@@ -87,7 +87,7 @@ export interface DBPaginate {
   firstPage: boolean
 }
 
-export interface DBConfig {
+export interface DBConnectionSettings {
   default?: boolean
   driver: string
   database: string
@@ -97,8 +97,8 @@ export interface DBConfig {
   port?: number
 }
 
-export interface DBConfigs {
-  [key: string]: DBConfig
+export interface DBSettings {
+  [key: string]: DBConnectionSettings
 }
 
 export interface DBPool {
@@ -162,7 +162,7 @@ export class DBNull {
 
 export class DB {
   private static _connectionPools: DBPool[] = []
-  private static _configuration?: DBConfigs
+  private static _configuration?: DBSettings
 
   private _connection?: mysql.PoolConnection
   private _pool?: mysql.Pool
@@ -195,7 +195,8 @@ export class DB {
   protected async _connect(name: string | undefined) {
     return new Promise(resolve => {
       // Get the configurations from file if it hasn't been read yet
-      if (!DB._configuration) DB._configuration = require(configPath('db')) as DBConfigs
+      if (!DB._configuration) DB._configuration = getConfig<DBSettings>('db')
+      if (!DB._configuration) throw new Error(`Could not find the database configuration at "${configPath('db.js')}"`)
 
       // Find the requested configuration within the configurations
       let [alias, db] = Object.entries(DB._configuration).find(e => {

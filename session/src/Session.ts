@@ -1,6 +1,7 @@
 import * as path from 'path'
 import { CookieSerializeOptions, parse, serialize } from 'cookie'
 import { Client, storagePath, getConfig, AppSettings } from '@red5/server'
+import { Storage } from '@red5/storage'
 import * as crypto from 'crypto'
 import { stat, readFile, writeFile, rename, unlink } from 'fs'
 
@@ -17,29 +18,31 @@ export interface SessionFlashItem {
 }
 
 export interface SessionRecord {
-  id: string | null
+  id: string | undefined | null
   items: SessionItem[]
   flash: SessionFlashItem[]
-  creation: Date | null
-  expires: Date | null
+  creation: Date | undefined | null
+  expires: Date | undefined | null
   csrf: string
-  options: CookieSerializeOptions
+  cookie: CookieSerializeOptions & { expires?: Date | number | undefined }
 }
 
 const SESSION_ROOT = 'framework/session'
 
 export class Session {
-  private readonly _originalRecord: SessionRecord = { id: null, creation: null, expires: null, csrf: '', options: { path: '/' }, items: [], flash: [] }
+  private readonly _originalRecord: SessionRecord = { id: null, creation: null, expires: null, csrf: '', cookie: { path: '/' }, items: [], flash: [] }
   private readonly _store: 'file' = 'file'
   private readonly _root: string = storagePath(SESSION_ROOT)
 
   private _started: boolean = false
   private _record: SessionRecord = this._originalRecord
+  private store: Storage
 
   public constructor(private client: Client) {
     this.client.session = <any>this
     let app = getConfig('app') as AppSettings
     this._store = app.session && app.session.store ? app.session.store : 'file'
+    this.store = Storage.mount('session')
   }
 
   /**
@@ -48,25 +51,35 @@ export class Session {
    * @param {CookieSerializeOptions} options
    * @memberof Session
    */
-  public async start(options: CookieSerializeOptions) {
+  public async start(options?: CookieSerializeOptions) {
     // Check if the session has already been started
     if (this._started) return
     this._started = true
-    if (options) this._record.options = options
+    if (options) this._record.cookie = options
     // Get the cookies
     let cookies = parse(<string>this.client.request.headers.cookie || '')
     // Get the cookie sessid
     this._record.id = cookies.sessid || this._generateHash()
+
+    let expires
+    if (options && options.expires instanceof Date) {
+      expires = options && options.expires || undefined
+    } else if (options && typeof options.expires == 'number') {
+      expires = new Date(Date.now() + options.expires)
+    }
+
     if (this._store == 'file') {
-      let sessionStoragePath = path.join(this._root, `${this._record.id}.sess`)
-      let isFile = await new Promise(r => stat(sessionStoragePath, (e, stat) => { return e ? r(false) : r(stat.isFile()) }))
-      if (isFile) {
-        this._record = await new Promise<SessionRecord>(r => readFile(sessionStoragePath, (e, data) => r(JSON.parse(data.toString()))))
+      const file = `${this._record.id}.sess`
+      if (await this.store.exists(file)) {
+        // A session with this id already exists, lets load it
+        this._record = JSON.parse((await this.store.load(file)).toString())
+        this._record.cookie.expires = expires
+        this._record.expires = expires
       } else {
+        // No session found start a new one
         this._record.creation = new Date
+        this._record.expires = this._record.cookie.expires
         this._record.id = this._generateHash()
-        let sessionStoragePath = path.join(this._root, `${this._record.id}.sess`)
-        await new Promise<void>(r => writeFile(sessionStoragePath, JSON.stringify(this._record), () => r()))
       }
     }
     this._record.flash.forEach(i => i.count++)
@@ -193,7 +206,6 @@ export class Session {
     let itm = this._record.items.find(i => i.key == key)
     if (itm) itm.value = value
     else this._record.items.push({ key, value, expires })
-    this._save()
     return this
   }
 
@@ -209,7 +221,6 @@ export class Session {
     let itm = this._record.flash.find(i => i.key == key)
     if (itm) itm.value = value
     else this._record.flash.push({ key, value, count: 0 })
-    this._save()
     return this
   }
 
@@ -245,9 +256,8 @@ export class Session {
   public increaseTTL(seconds: number) {
     let exp = this._record.expires ? this._record.expires.getTime() : new Date().getTime()
     this._record.expires = new Date(exp + (seconds * 1000))
-    this._record.options.expires = this._record.expires
+    this._record.cookie.expires = this._record.expires
     this._setCookieHeader()
-    this._save()
     return this._record.expires
   }
 
@@ -264,20 +274,18 @@ export class Session {
     if (!item) return
     let exp = item.expires ? item.expires.getTime() : new Date().getTime()
     item.expires = new Date(exp + (seconds * 1000))
-    this._save()
     return item.expires
   }
 
   private async _save() {
-    let cookies = parse(<string>this.client.request.headers.cookie || '')
+    // let cookies = parse(<string>this.client.request.headers.cookie || '')
     // Get the cookie sessid
-    let id = cookies.sessid || ''
-    if (this._store == 'file') {
-      let session = path.join(this._root, `${id}.sess`)
-      let isFile = await new Promise(r => stat(session, (e, stat) => { return e ? r(true) : r(stat.isFile()) }))
-      if (!isFile) {
-        await new Promise<SessionRecord>(r => writeFile(session, JSON.stringify(this._record), () => r()))
-        return true
+    // let id = cookies.sessid || ''
+    if (this._record.id && this._store == 'file') {
+      let session = `${this._record.id}.sess`
+      let exists = await this.store.exists(session)
+      if (!exists) {
+        await this.store.save(session, JSON.stringify(this._record))
       }
     }
     return false
@@ -290,11 +298,11 @@ export class Session {
   }
 
   private _setCookieHeader() {
-    this.client.response.setHeader('Set-Cookie', serialize('sessid', this._record.id || '', this._record.options))
+    this.client.response.setHeader('Set-Cookie', serialize('sessid', this._record.id || '', this._record.cookie))
   }
 
   private _deleteCookieHeader() {
-    let options: object = JSON.parse(JSON.stringify(this._record.options))
+    let options: object = JSON.parse(JSON.stringify(this._record.cookie))
     options = Object.assign(options, { expires: new Date(0, 0, 0) })
     this.client.response.setHeader('Set-Cookie', serialize('sessid', this._record.id || '', options))
   }

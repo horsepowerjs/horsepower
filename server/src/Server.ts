@@ -7,13 +7,13 @@ import * as url from 'url'
 import { Template } from './Template'
 import * as helpers from './helper'
 import * as shell from 'shelljs'
-import { serialize } from 'cookie'
+import { serialize, CookieSerializeOptions } from 'cookie'
 
 import { Router } from '@red5/router'
-import { Storage, StorageConfig } from '@red5/storage'
+import { Storage, StorageSettings } from '@red5/storage'
 import { MiddlewareManager } from '@red5/middleware'
 import { Client, Response, log } from '.'
-import { env, getConfig, storagePath } from './helper'
+import { env, getConfig, storagePath, configPath } from './helper'
 
 export interface RouterSettings {
   controllers: string
@@ -31,6 +31,7 @@ export interface AppSettings {
   env?: string
   session?: {
     store?: 'file'
+    cookie?: CookieSerializeOptions
   }
   https?: https.ServerOptions | false
   chunkSize?: number
@@ -63,7 +64,7 @@ export interface Connection {
 
 export class Server {
   private static instance: http.Server | https.Server
-  public static app: AppSettings
+  public static app?: AppSettings
 
   public static start() {
     // Load the application env file if it exists
@@ -71,7 +72,8 @@ export class Server {
     let env = require('dotenv').config({ path: envPath })
 
     // Load the application configuration
-    this.app = require(helpers.applicationPath('config/app')) as AppSettings
+    this.app = getConfig<AppSettings>('app')
+    if (!this.app) return log.error(`Cannot find the app config at "${configPath('app.js')}"`)
 
     // Create the server
     this.instance = !!this.app.https ?
@@ -82,35 +84,43 @@ export class Server {
 
     // Listen on the provided port
     this.instance.listen(this.app.port, () => {
+      if (!this.app) return
       // Output the config settings
       console.log(`Red5 is now listening on port "${this.app.port}" (Not yet accepting connections)`)
 
       // Config locations
-      let views = require(helpers.configPath('view')) as ViewSettings
-      let storage = require(helpers.configPath('storage')) as StorageConfig
-      let db = require(helpers.configPath('db')) as DBSettings
-      let route = require(helpers.configPath('route')) as RouterSettings
+      let views = getConfig<ViewSettings>('view')
+      let storage = getConfig<StorageSettings>('storage')
+      let db = getConfig<DBSettings>('db')
+      let route = getConfig<RouterSettings>('route')
 
       // Setup dependencies
-      Router.setControllersRoot(route.controllers)
-      Template.setTemplatesRoot(views.path)
-      Storage.setConfig(storage)
+      route && Router.setControllersRoot(route.controllers)
+      views && Template.setTemplatesRoot(views.path)
+      storage && Storage.setConfig(storage)
 
-      let appConfig = getConfig('app')
+      let appConfig = getConfig<AppSettings>('app')
 
       // Log configuration settings
       console.log('--- Start Config Settings -----')
+      console.log(`    --- File Paths ---`)
       console.log(`    environment: "${!env.error ? envPath : '.env file not found!'}"`)
-      console.log(`    controllers: "${route.controllers}"`)
-      console.log(`    views: "${views.path}"`)
-      console.log(`    storage default: "${storage.default}"`)
-      console.log(`    storage cloud: "${storage.cloud || ''}"`)
-      console.log(`    storage session: "${appConfig.session && appConfig.session.store}"`)
-      if (appConfig.session && appConfig.session.store) {
+      console.log(`    controllers: "${(route || { controllers: '' }).controllers}"`)
+      console.log(`    views:       "${(views || { path: '' }).path}"`)
+      console.log(`    routes:      "${(route || { routes: '' }).routes}"`)
+      console.log(`    --- Storage settings ---`)
+      console.log(`    storage:`)
+      console.log(`      default: "${(storage || { default: '' }).default}"`)
+      console.log(`      cloud:   "${(storage || { cloud: '' }).cloud || ''}"`)
+      console.log(`      session: "${appConfig && appConfig.session && appConfig.session.store || ''}"`)
+      if (appConfig && appConfig.session && appConfig.session.store) {
         shell.mkdir('-p', storagePath('framework/session'))
       }
-      console.log(`    disks:`)
-      for (let i in storage.disks) console.log(`      ${i}: "${storage.disks[i].root || ''}"`)
+      if (storage) {
+        console.log(`    disks:`)
+        for (let i in storage.disks) console.log(`      ${i}: "${storage.disks[i].root || ''}"`)
+      }
+      else { console.log(`      none`) }
       if (db) {
         console.log(`    databases:`)
         for (let i in db) {
@@ -127,38 +137,39 @@ export class Server {
           }
         }
       }
-      console.log(`    routes: "${route.routes}"`)
       console.log('--- End Config Settings -----')
       console.log(' ')
-      try {
-        console.log(`--- Start Route Setup -----`)
-        require(route.routes)
-        // Get the longest route
-        let longestRoute = Router.routes.reduce((num, val) => {
-          let len = val.pathAlias instanceof RegExp ? `RegExp(${val.pathAlias.source})`.length : val.pathAlias.length
-          return len > num ? len : num
-        }, 'Route'.length)
-        // Get the longest controller
-        let longestController = Router.routes.reduce((num, val) => {
-          let len = typeof val.callback == 'string' ? val.callback.length : 'Closure'.length
-          return len > num ? len : num
-        }, 'Controller'.length)
-        // Get the longest name
-        let longestName = Router.routes.reduce((num, val) => {
-          let len = val.routeName.length || 0
-          return len > num ? len : num
-        }, 'Name'.length)
-        console.log(`    ${'Method'.padEnd(10)}${'Route'.padEnd(longestRoute + 3)}${'Controller'.padEnd(longestController + 3)}${'Name'}`)
-        console.log(`${''.padEnd(longestController + longestRoute + longestName + 20, '-')}`)
-        Router.routes.forEach(route => {
-          let method = route.method.toUpperCase()
-          let routeAlias = route.pathAlias instanceof RegExp ? `RegExp(${route.pathAlias.source})` : route.pathAlias
-          let routeCtrl = typeof route.callback == 'string' ? `${route.callback}` : 'Closure'
-          console.log(`    ${method.padEnd(10)}${routeAlias.padEnd(longestRoute + 3)}${routeCtrl.padEnd(longestController + 3)}${route.routeName}`)
-        })
-        console.log(`--- End Routes Setup -----`)
-      } catch (e) {
-        console.error(`Could not load routes from "${route.routes}":\n  - ${e.message}`)
+      if (route) {
+        try {
+          console.log(`--- Start Route Setup -----`)
+          require(route.routes)
+          // Get the longest route
+          let longestRoute = Router.routes.reduce((num, val) => {
+            let len = val.pathAlias instanceof RegExp ? `RegExp(${val.pathAlias.source})`.length : val.pathAlias.length
+            return len > num ? len : num
+          }, 'Route'.length)
+          // Get the longest controller
+          let longestController = Router.routes.reduce((num, val) => {
+            let len = typeof val.callback == 'string' ? val.callback.length : 'Closure'.length
+            return len > num ? len : num
+          }, 'Controller'.length)
+          // Get the longest name
+          let longestName = Router.routes.reduce((num, val) => {
+            let len = val.routeName.length || 0
+            return len > num ? len : num
+          }, 'Name'.length)
+          console.log(`    ${'Method'.padEnd(10)}${'Route'.padEnd(longestRoute + 3)}${'Controller'.padEnd(longestController + 3)}${'Name'}`)
+          console.log(`${''.padEnd(longestController + longestRoute + longestName + 20, '-')}`)
+          Router.routes.forEach(route => {
+            let method = route.method.toUpperCase()
+            let routeAlias = route.pathAlias instanceof RegExp ? `RegExp(${route.pathAlias.source})` : route.pathAlias
+            let routeCtrl = typeof route.callback == 'string' ? `${route.callback}` : 'Closure'
+            console.log(`    ${method.padEnd(10)}${routeAlias.padEnd(longestRoute + 3)}${routeCtrl.padEnd(longestController + 3)}${route.routeName}`)
+          })
+          console.log(`--- End Routes Setup -----`)
+        } catch (e) {
+          console.error(`Could not load routes from "${route.routes}":\n  - ${e.message}`)
+        }
       }
       console.log('Red5 is now accepting connections!')
     })
@@ -177,6 +188,7 @@ export class Server {
   }
 
   private static async request(req: http.IncomingMessage, res: http.ServerResponse) {
+    if (!this.app) return
     let urlInfo = url.parse('http://' + req.headers.host + (req.url || '/'))
     let client = new Client(req)
 
@@ -303,6 +315,7 @@ export class Server {
   }
 
   private static async send(client: Client, req: http.IncomingMessage, res: http.ServerResponse) {
+    if (!this.app) return
     let fileSize = client.response.contentLength
     let start = 0, end = fileSize - 1 < start ? start : fileSize - 1
     // If the file is larger than 10,000,000 bytes

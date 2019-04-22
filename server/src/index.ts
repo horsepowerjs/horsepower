@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { Server, AppSettings } from './Server'
-import { applicationPath, env } from './helper'
+import { applicationPath, env, getConfig } from './helper'
 import { Client } from './Client'
 import * as shell from 'shelljs'
 
@@ -20,17 +20,18 @@ export function stop() {
 }
 
 export class log {
-  public static async error(message: string | Error, client: Client) {
+  public static async error(message: string | Error, client?: Client) {
     let d = new Date
     let file = ''
     if (message instanceof Error) {
       file = ((message.stack || '').match(/\(.+\.js:\d+:\d+\)/i) || [''])[0]
     }
     let msg = typeof message == 'string' ? message : `${message.message} ${file}`
-    let errMsg = `[${d.toUTCString()}] ${client.response.code} ${(client.request.method || 'GET').toUpperCase()} "${(client.request.url || '/')}" -- "${msg}"`
-    let app = require(applicationPath('config/app')) as AppSettings
+    let clientStr = client ? `${client.response.code} ${(client.request.method || 'GET').toUpperCase()} "${(client.request.url || '/')}"` : ''
+    let errMsg = `[${d.toUTCString()}] ${clientStr} -- "${msg}"`
+    let app = getConfig<AppSettings>('app')
     // Log to the error file
-    if (app.logs && app.logs.error && app.logs.error.path) {
+    if (app && app.logs && app.logs.error && app.logs.error.path) {
       shell.mkdir('-p', path.parse(app.logs.error.path).dir)
       let errorPath = app.logs.error.path
       let errorSize = app.logs.error.maxSize || undefined
@@ -48,10 +49,39 @@ export class log {
     }
   }
 
+  public static async warn(message: string | Error, client?: Client) {
+    let d = new Date
+    let file = ''
+    if (message instanceof Error) {
+      file = ((message.stack || '').match(/\(.+\.js:\d+:\d+\)/i) || [''])[0]
+    }
+    let msg = typeof message == 'string' ? message : `${message.message} ${file}`
+    let clientStr = client ? `${client.response.code} ${(client.request.method || 'GET').toUpperCase()} "${(client.request.url || '/')}"` : ''
+    let warnMsg = `[${d.toUTCString()}] ${clientStr} -- "${msg}"`
+    let app = getConfig<AppSettings>('app')
+    // Log to the error file
+    if (app && app.logs && app.logs.error && app.logs.error.path) {
+      shell.mkdir('-p', path.parse(app.logs.error.path).dir)
+      let errorPath = app.logs.error.path
+      let errorSize = app.logs.error.maxSize || undefined
+      if (errorSize) {
+        let stats = await new Promise<fs.Stats>(r => fs.stat(errorPath, (err, stats) => r(stats)))
+        if (stats && stats.size >= errorSize) await new Promise(r => fs.truncate(errorPath, () => r()))
+      }
+      await new Promise(r => fs.appendFile(errorPath, `${warnMsg}\n`, () => r()))
+    }
+    // Log the error to the console
+    if (env('APP_ENV', 'production') != 'production') {
+      // let trace = typeof message == 'string' ? '' : message.stack
+      // console.trace(trace)
+      // console.error(`\x1b[226m${warnMsg}\x1b[0m`)
+    }
+  }
+
   public static async access(client: Client) {
     let d = new Date()
     let msg = (client.request.method || 'GET') + ' ' + (client.request.url || '/')
-    let app = require(applicationPath('config/app')) as AppSettings
+    let app = getConfig<AppSettings>('app')
     if (env('APP_ENV', 'production') != 'production') {
       if ([
         // Informational
@@ -68,7 +98,7 @@ export class log {
         console.error('\x1b[31m[%s] %s %s\x1b[0m', d.toUTCString(), client.response.code, msg)
       }
     }
-    if (app.logs && app.logs.access && app.logs.access.path) {
+    if (app && app.logs && app.logs.access && app.logs.access.path) {
       let ip = (client.request.connection.remoteAddress || '::1').replace(/^::1/, '127.0.0.1')
       let httpVersion = client.request.httpVersion || '1.1'
       let agent = client.request.headers['user-agent'] || ''
