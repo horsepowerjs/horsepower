@@ -318,8 +318,8 @@ export class Server {
     if (!this.app) return
     let fileSize = client.response.contentLength
     let start = 0, end = fileSize - 1 < start ? start : fileSize - 1
-    // If the file is larger than 10,000,000 bytes
-    // then send the file in chunks
+    // If the file is larger than the defined chunk size then send the file in chunks.
+    // If the chunk size isn't set then default to 5,000,000 bytes per chunk.
     if (fileSize > (this.app.chunkSize || 5e6)) {
       let range = (req.headers.range || '') as string
       let positions = range.replace(/bytes=/, '').split('-')
@@ -344,8 +344,9 @@ export class Server {
     // Execute the middleware termination commands
     await MiddlewareManager.run(client.route, client, 'terminate')
 
-    // Set the cookies
     let headers: [string, string][] = []
+
+    // Add the cookies to the header
     for (let c of client.response.cookies) {
       headers.push(['Set-Cookie', serialize(c.key, c.value, {
         domain: c.domain,
@@ -357,6 +358,8 @@ export class Server {
         secure: c.secure
       })])
     }
+
+    // Add all of the other headers
     for (let h in client.response.headers) {
       let header = client.response.headers[h]
       if (header) headers.push([h, header.toString()])
@@ -369,6 +372,7 @@ export class Server {
     log.access(client)
 
     // If the method type is of 'head' or 'options' no body should be sent
+    // In this case we send the headers only and the body should not be sent
     if (['head', 'options'].includes(client.method)) {
       res.end()
       client.session && await client.session.end()
@@ -377,6 +381,8 @@ export class Server {
 
     // Generate the response body
     if (client.response.filePath) {
+      // We are sending a file to the user, open it and read it
+      // If the file is sent in chunks this will handle it
       let stream: fs.ReadStream = fs.createReadStream(client.response.filePath, { start, end })
         .on('open', () => stream.pipe(<any>res))
         .on('close', () => res.end())

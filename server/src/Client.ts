@@ -27,9 +27,9 @@ export class Client {
   private readonly _files: FileType[] = []
   private readonly _headers: IncomingHttpHeaders
   private readonly _response: Response
-  // private _helpers: Helpers = {}
-  private _id: string
+  private readonly _id: string
   private _req: IncomingMessage
+  // private _helpers: Helpers = {}
 
   public route!: Route
   public session?: Session
@@ -42,7 +42,7 @@ export class Client {
     this.ajax = req.headers['x-requested-with'] == 'XMLHttpRequest'
     this._response = new Response()
     this._headers = req.headers
-    this._id = (Math.random() * 10e15).toString(36)
+    this._id = (Math.random() * 10e15).toString(36).replace(/\W/g, '')
     this._post = {}
 
     // Attempt to get the request type.
@@ -52,33 +52,56 @@ export class Client {
     this.method = (this.data.request<string>('_method', null) || req.method || 'get').toLowerCase() as RequestMethod
   }
 
+  /**
+   * Initialize anything that shouldn't be initialized in the constructor
+   *
+   * @memberof Client
+   */
   public async init() {
     try {
-      this.session = await new Promise(r => import('@red5/session').then(v => r(new v.Session(<any>this))))
+      if (!this.session)
+        this.session = await new Promise(r => import('@red5/session').then(v => r(new v.Session(<any>this))))
     } catch (e) { }
   }
 
+  /**
+   * Attempts to read the information about the body of the request, such as attachments
+   *
+   * @param {string} body The received body string from the request
+   * @memberof Client
+   */
   public setBody(body: string) {
     let contentType = this.headers.get<string>('content-type')
     if (contentType.includes('boundary=')) {
+      // Get the boundary for each item
       let [type, boundary] = contentType.split('boundary=')
       body.split(new RegExp(`(--${boundary}|--${boundary}--)`)).forEach(item => {
         if (item.trim().toLowerCase().startsWith('content-disposition')) {
           item = item.trim()
-          let result = item.split(':')[1].split(';').map(i => i.trim()).reduce((obj, itm) => {
-            if (itm.startsWith('name=')) obj.name = (itm.match(/^name="(.+)"/) || [''])[1]
-            if (itm.startsWith('filename=')) obj.filename = (itm.match(/^filename="(.+)"/) || [''])[1]
-            return obj
-          }, { name: '', filename: '' })
+
+          // Attempt to get the name and filename from a file upload
+          let result = item.split(':')[1]
+            .split(';')
+            .map(i => i.trim())
+            .reduce((obj, itm) => {
+              if (itm.startsWith('name=')) obj.name = (itm.match(/^name="(.+)"/) || [''])[1]
+              if (itm.startsWith('filename=')) obj.filename = (itm.match(/^filename="(.+)"/) || [''])[1]
+              return obj
+            }, { name: '', filename: '' })
+
           if (result.filename.length > 0) {
-            let temp = join(os.tmpdir(), 'builder-' + (Math.random() * 10000).toString(12).substr(5, 10))
+            // Creates a temporary filename to store the upload
+            // This will use the operating systems temp directory to store the file
+            let temp = join(os.tmpdir(), 'red5-' + (Math.random() * 10000).toString(12).substr(5, 10) + '.tmp')
             let [full, newlines, file] = Array.from(item.match(/^.+?(\r\n\r\n|\n\n)(.+)/s) || [])
-            // fs.createWriteStream(temp + '-a').write(full, 'binary')
+
+            // Write the file to the temp directory
             fs.createWriteStream(temp).write(file, 'binary')
+
+            // Add the file to the list of files
             this._files.push({
               key: result.name,
               filename: result.filename,
-              // full: temp + '-a',
               tmpFilename: temp
             })
           } else {
@@ -95,65 +118,154 @@ export class Client {
     }
   }
 
+  /**
+   * Gets the path from the route, if it isn't found return `/` as the path
+   *
+   * @readonly
+   * @type {string}
+   * @memberof Client
+   */
   public get path(): string {
-    if (this.route) return this.route.path
-    return '/'
+    return this.route && this.route.path || '/'
   }
 
   public get response() {
     return this._response
   }
 
+  /**
+   * Gets data from a request
+   *
+   * @readonly
+   * @memberof Client
+   */
   public get data() {
     let $this = this
     return {
+      /**
+       * Gets the file information from a request
+       *
+       * @param {string} key The key that was used to reference the file
+       * @returns
+       */
       files(key: string) {
         return ($this._files.find(i => i.key == key))
       },
+      /**
+       * Gets a query parameter
+       *
+       * @template T
+       * @param {string} key The key to the query parameter
+       * @param {*} [defaultValue=''] The default value if the key doesn't exist
+       * @returns {T}
+       */
       get<T extends any>(key: string, defaultValue: any = ''): T {
         if ($this._get[key]) return $this._get[key]
         else return defaultValue
       },
+      /**
+       * Gets a post parameter
+       *
+       * @template T
+       * @param {string} key The key to the post parameter
+       * @param {*} [defaultValue=''] The default value if the key doesn't exist
+       * @returns {T}
+       */
       post<T extends any>(key: string, defaultValue: any = ''): T {
         if ($this._post[key]) return $this._post[key]
         return defaultValue
       },
+      /**
+       * Gets a parameter no matter if it is a `post` or `get` parameter.
+       * If the key is in both the `get` and `post` data, the `get` key will be returned
+       *
+       * @template T
+       * @param {string} key The key to the get or post parameter
+       * @param {*} [defaultValue=''] The default value if the key doesn't exist
+       * @returns {T}
+       */
       request<T extends any>(key: string, defaultValue: any = ''): T {
         if ($this._get[key]) return $this._get[key]
         else if ($this._post[key]) return $this._post[key]
         else return defaultValue
       },
+      /**
+       * Gets the request data and converts it to an object
+       *
+       * @returns
+       */
       toObject() {
-        let obj: { get: { [key: string]: any }, post: { [key: string]: any } } = { get: {}, post: {} }
+        type ToObj = { get: { [key: string]: any }, post: { [key: string]: any }, files: { [key: string]: FileType } }
+        let obj: ToObj = { get: {}, post: {}, files: {} }
         for (let key in $this._get) { obj.get[key] = $this._get[key] }
-        for (let key in $this._post) { obj.get[key] = $this._post[key] }
+        for (let key in $this._post) { obj.post[key] = $this._post[key] }
+        for (let key in $this._files) { obj.files[key] = <FileType>this.files(key) }
         return Object.freeze(obj)
       }
     }
   }
 
+  /**
+   * Reads the headers
+   *
+   * @readonly
+   * @memberof Client
+   */
   public get headers() {
     let $this = this
     return {
+      /**
+       * Gets a item from the headers
+       *
+       * @template T
+       * @param {string} key The header key
+       * @param {*} [defaultValue=''] The default value if the key doesn't exist
+       * @returns {T}
+       */
       get<T>(key: string, defaultValue: any = ''): T {
         let header = $this._headers[key.toLowerCase()]
         return header || defaultValue
       },
+      /**
+       * Checks if a header is set
+       *
+       * @param {string} key The header key
+       * @returns
+       */
       has(key: string) {
         return this.get<string>(key).length > 0
       },
-      is(key: string, value?: any) {
+      /**
+       * Checks if a header is set with an exact value
+       *
+       * @param {string} key The header key
+       * @param {*} value The value that the headers value MUST equal
+       * @returns
+       */
+      is(key: string, value: any) {
         let v = this.get(key)
         if (v && value) return v == value
         return !!v
       },
+      /**
+       * All of the header values
+       *
+       * @returns
+       */
       all() {
-        return $this._headers
+        return Object.freeze(JSON.parse(JSON.stringify($this._headers)))
       }
     }
   }
 
-  // public get helpers(): Helpers { return this._helpers }
+
+  /**
+   * Gets the request's unique identifer which is created upon request
+   *
+   * @readonly
+   * @type {string}
+   * @memberof Client
+   */
   public get id(): string { return this._id }
 
   public setRoute(route: Route) {
