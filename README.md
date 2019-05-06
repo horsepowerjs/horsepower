@@ -61,7 +61,7 @@ gulp build
 gulp build:watch
 ```
 
-### Testing (Optional)
+### Testing
 
 The simplest way to test is to install the `@red5/cli` tool, this will download and install the red5 packages from [Github](https://github.com/red5-server/red5)
 
