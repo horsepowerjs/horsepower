@@ -3,7 +3,7 @@ import { step, replaceHolders } from '.';
 import { Mixin } from './mixin';
 import { TemplateData } from '..';
 
-// <case :="i">
+// <case :="{{$item}}">
 //   <when :="1">...</when>
 //   <when :="2">...</when>
 //   <default>...</default>

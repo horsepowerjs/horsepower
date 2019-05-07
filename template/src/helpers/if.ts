@@ -1,7 +1,7 @@
 import { Template } from './extend';
-import { step, replaceHolders } from '.';
+import { step, replaceHolders, getVariables } from '.';
 import { Mixin } from './mixin';
-import { TemplateData } from '..';
+import { TemplateData, getScopeData } from '..';
 
 // <if :="i == 0">...</if>
 // <elif :="i == 1">...</elif>
@@ -38,7 +38,17 @@ export function ifBlock(root: Template, element: Element, data: TemplateData, mi
     // the node is an if/elif node, test its conditions
     else {
       let condition = node.getAttribute(':') || 'false'
-      let result = !!eval(replaceHolders(condition, data))
+      const esc = s => s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      let test = getVariables(condition).join('|')
+
+      let evaluate = condition.replace(new RegExp(esc(test), 'g'), (f) => {
+        console.log(f)
+        return 'a'
+      })
+      console.log(evaluate)
+      // console.log(condition, getScopeData([0], data))
+      // let result = !!eval(replaceHolders(condition, data))
+      let result = !!eval(evaluate)
       // The test failed go to the next node
       if (!result) continue
       // The test succeeded add the children to the fragment

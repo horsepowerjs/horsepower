@@ -1,4 +1,4 @@
-import { Template, parseFile, step, extend, getData } from './helpers'
+import { Template, parseFile, step, extend, getData, find } from './helpers'
 import { getMixins } from './helpers/mixin'
 import { minify } from 'html-minifier'
 
@@ -11,6 +11,28 @@ export interface TemplateData {
 }
 
 export type Nullable<T> = T | null | undefined
+
+// Find values between "{{" and "}}" and not between html tags "<" and ">"
+// Starts with a "$" and not followed by a "\d" or "."
+// Valid Examples: {{$cat}}, {{$i.name}}
+// Invalid Examples: {{$234}}, {{$.name}}
+export function variableMatch(key: string) {
+  return new RegExp(`\\{\\{(\\$(?!(\\d|\\.))${key}[.\\w]*)(?![^\\<]*\\>)\\}\\}`, 'g')
+}
+
+export function getScopeData(search: string, data: TemplateData, scope?: Nullable<string>, key?: Nullable<string | number>) {
+  let dataToSearch = data.originalData
+  // console.log('scope', scope)
+  if (search.split('.').length == 1 && !scope) {
+    return data.originalData[search.replace(/^\$/, '')]
+  } if (typeof scope == 'string' && scope.length > 0) {
+    dataToSearch = data.scopes && data.scopes.length > 0 ?
+      (data.scopes.find(i => i.reference == scope.replace(/^\$/, '')) || { data: {} }).data : {}
+  }
+  // console.log(scope, search, dataToSearch)
+  // console.log('search', search, key, search.replace(new RegExp(`^\\$${scope}`), (key && ['string', 'number'].includes(typeof key) ? key : '').toString()).replace(/^\$/, ''))
+  return find(search.replace(new RegExp(`^\\$${scope}`), (key || search.replace(/^\$/, '')).toString()), dataToSearch)
+}
 
 export class Red5Template {
 

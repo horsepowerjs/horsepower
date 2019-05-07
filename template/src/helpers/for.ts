@@ -1,7 +1,7 @@
-import { step } from '.'
+import { step, getVariables } from '.'
 import { Template } from './extend'
 import { Mixin } from './mixin';
-import { TemplateData } from '..';
+import { TemplateData, getScopeData, variableMatch } from '..';
 
 // <for :="i from 10 through 15">{{$i}}</for> <!-- 10,11,12,13,14,15 -->
 // <for :="i from 10 thru 15">{{$i}}</for>    <!-- 10,11,12,13,14,15 -->
@@ -10,7 +10,9 @@ import { TemplateData } from '..';
 export async function forBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let query = element.getAttribute(':')
   if (query && element.ownerDocument) {
-    let matches = query.replace(/\s\s+/g, ' ').split(/(\w+) from (-?\d+) (through|thru|to) (-?\d+)/i).filter(String)
+    let matches = query.replace(/\s\s+/g, ' ')
+      .split(/(\w+) from (-?\d+|\{\{\$\w+\}\}) (through|thru|to) (-?\d+|\{\{\$\w+\}\})/i).filter(String)
+
     if (matches.length != 4) {
       element.remove()
       return
@@ -19,18 +21,33 @@ export async function forBlock(root: Template, element: Element, data: TemplateD
       for (let child of element.childNodes) {
         let clone = child.cloneNode(true)
         if (clone instanceof root.dom.window.HTMLElement) {
-          clone.innerHTML = clone.innerHTML.replace(new RegExp(`\{\{${key}\}\}`, 'g'), i.toString())
+          clone.innerHTML = clone.innerHTML.replace(new RegExp(`\\{\\{\\$${key}\\}\\}`, 'g'), i.toString())
         } else if (clone.textContent) {
-          clone.textContent = clone.textContent.replace(new RegExp(`\{\{${key}\}\}`, 'g'), i.toString())
+          clone.textContent = clone.textContent.replace(new RegExp(`\\{\\{\\$${key}\\}\\}`, 'g'), i.toString())
         }
         step(root, clone, data, mixins)
         frag.appendChild(clone)
       }
     }
     let key = matches[0].trim()
-    let start = parseInt(matches[1])
+    let start = 0, end = 0;
+
+    if (matches[1].startsWith('{{$') && matches[1].endsWith('}}')) {
+      // Replace the start variable with an actual number
+      start = parseInt(getScopeData(getVariables(matches[1])[0], data))
+    } else {
+      start = parseInt(matches[1])
+    }
+
     let type = matches[2].trim().toLowerCase()
-    let end = parseInt(matches[3])
+
+    if (matches[3].startsWith('{{$') && matches[3].endsWith('}}')) {
+      // Replace the end variable with an actual number
+      end = parseInt(getScopeData(getVariables(matches[3])[0], data))
+    } else {
+      end = parseInt(matches[3])
+    }
+    console.log(start, end)
     let frag = element.ownerDocument.createDocumentFragment()
     switch (type) {
       case 'through':
