@@ -9,11 +9,20 @@ import { eachBlock } from './each'
 import { forBlock } from './for'
 import { includeMixin, Mixin } from './mixin'
 import { caseBlock } from './case'
-import { TemplateData } from '..'
+import { TemplateData, Nullable } from '..'
 
 export * from './files'
 export * from './extend'
 
+/**
+ * Gets the data that will be searched
+ *
+ * @export
+ * @param {string} text The variable name like: "$example"
+ * @param {TemplateData} data The template data
+ * @param {string} [scope] The optional scope
+ * @returns
+ */
 export function getData(text: string, data: TemplateData, scope?: string) {
   let dataToSearch = data.originalData
   if (typeof scope == 'string') {
@@ -24,40 +33,103 @@ export function getData(text: string, data: TemplateData, scope?: string) {
   // return find(text.replace(/^\{\{|\}\}$/g, ''), dataToSearch)
 }
 
-export function getVariables(string: string) {
+/**
+ * Gets an array of variables within a string
+ * Formatted as: `$example`
+ *
+ * @export
+ * @param {string} string The string to search
+ * @returns {string[]} An array of matched variables
+ */
+export function getVariableValues(string: string): string[] {
   let match = ((string || '').match(/\{\{.+?\}\}/) || [])[0] || ''
   return [...new Set(match.match(/\$(?!(\d|\.))[.\w]+/g) || [])]
 }
 
+/**
+ * Gets an array of variable placeholders within a string
+ * Formatted as: `{{$example}}`
+ *
+ * @export
+ * @param {string} string The string to search
+ * @returns {string[]} Aan array of matched placeholders
+ */
+export function getVariables(string: string): string[] {
+  let match = ((string || '').match(/\{\{.+?\}\}/) || [])[0] || ''
+  return [...new Set(match.match(/\{\{\$(?!(\d|\.))[.\w]+\}\}/g) || [])]
+}
+
+export function getVariableStrings(string: string): string[] {
+  let match = ((string || '').match(/\{\{.+?\}\}/g) || [])
+  return [...new Set(match.map(i => i.replace(/^\{\{\$|\}\}$/g, '')))]
+  // return [...new Set(match.match(/(?!(\d|\.))[.\w]+/g) || [])]
+}
+
+
+
+/**
+ * Removes the first element in a variable
+ *
+ * @export
+ * @param {string} text The variable
+ * @returns
+ */
 export function dropFirst(text: string) {
   let r = text.replace(/^\{\{|\}\}$/g, '').split('.')
   r.shift()
   return r.join('.')
 }
 
-export function find(query: string, data: object | any[]) {
+/**
+ * Finds the data in a object/array if it exists
+ * `a.b.c` -> `{a: {b: {c: 'some value'}}}`
+ *
+ * @export
+ * @param {string} query The path to the value `a.b.c`
+ * @param {(object | any[])} data The data to find the value in
+ * @returns {any | undefined} The resulting data
+ */
+export function find(query: string, data: object | any[]): any | undefined {
   return query.split('.').reduce<any>((obj, val) => {
     return obj ? obj[val] : obj
   }, data)
 }
 
-export function replaceHolders(text: string, data: object) {
-  return text.replace(/\{\{.+\}\}/g, (i) => {
-    return JSON.stringify(find(i.replace(/^\{\{|\}\}$/g, ''), data))
+/**
+ * Replaces variables with their actual data
+ *
+ * @export
+ * @param {string} text The text to find the variables within
+ * @param {object} data The data related to the variables
+ * @returns {string} The resulting data
+ */
+export function replaceHolders(text: string, data: object): string {
+  return text.replace(/\{\{\$.+\}\}/g, (i) => {
+    return JSON.stringify(find(i.replace(/^\{\{\$|\}\}$/g, ''), data))
   })
 }
 
-export function makeFragment(element: string | Buffer | Element) {
-  let fragment: DocumentFragment | null = null
-  if (typeof element == 'string' || element instanceof Buffer) {
-    fragment = JSDOM.fragment(element.toString())
-  } else {
-    fragment = JSDOM.fragment((<any>element).outerHTML)
-  }
-  return fragment
+/**
+ * Makes a document fragment from an element
+ *
+ * @export
+ * @param {(string | Buffer | Element)} element
+ * @returns
+ */
+export function makeFragment(element: string | Buffer | Element): DocumentFragment {
+  return typeof element == 'string' || element instanceof Buffer ?
+    JSDOM.fragment(element.toString()) :
+    JSDOM.fragment((<any>element).outerHTML)
 }
 
-export function fragmentFromFile(file: string) {
+/**
+ * Makes a document fragment from a file with a root node
+ *
+ * @export
+ * @param {string} file The path to the file
+ * @returns {Promise<DocumentFragment>} The fragment from the file
+ */
+export function fragmentFromFile(file: string): Promise<DocumentFragment> {
   return new Promise<DocumentFragment>(resolve => {
     readFile(file, (err, data) => {
       resolve(makeFragment(data))
@@ -69,6 +141,14 @@ export function remove(element: Element) {
   element.remove()
 }
 
+/**
+ * Tests if the element is an HTMLElement
+ *
+ * @export
+ * @param {(Window | JSDOM)} windowScope The window scope
+ * @param {*} clone The element
+ * @returns {clone is HTMLElement} Whether or not this is an HTMLElement
+ */
 export function isHTMLElement(windowScope: Window | JSDOM, clone: any): clone is HTMLElement {
   if (windowScope instanceof Window && clone instanceof HTMLElement) {
     return true
@@ -78,21 +158,17 @@ export function isHTMLElement(windowScope: Window | JSDOM, clone: any): clone is
   return false
 }
 
+/**
+ * Steps through the node list
+ *
+ * @export
+ * @param {Template} root The root node
+ * @param {(Document | Element | Node | DocumentFragment)} node The current node
+ * @param {TemplateData} data The template data
+ * @param {Mixin[]} mixins
+ * @returns {Promise<void>}
+ */
 export async function step(root: Template, node: Document | Element | Node | DocumentFragment, data: TemplateData, mixins: Mixin[]): Promise<any> {
-  // if (node.nodeType == root.dom.window.Node.TEXT_NODE && node.textContent) {
-  //   node.textContent.match(/\{\{(.+)\}\}/) && console.log('step', JSON.stringify(data.scopes))
-  //   // Replace text node placeholders
-  //   node.textContent = node.textContent.replace(/\{\{(.+)\}\}/g, (full, v) => {
-  //     let vars = getVariables(full)
-  //     for (let v2 of vars) {
-  //       let search = v2.split(/\./)
-  //       if (search.length > 1 && search[0].startsWith('$')) {
-  //         return getData(v, data, search[0].replace(/^\$/, ''))
-  //       }
-  //     }
-  //     return getData(v, data)
-  //   })
-  // } else {
   for (let child of node.childNodes) {
     if (child.nodeType == root.dom.window.Node.TEXT_NODE && child.textContent) {
       // child.textContent.match(/\{\{(.+)\}\}/) && console.log('step', JSON.stringify(data.scopes))
@@ -138,5 +214,46 @@ export async function step(root: Template, node: Document | Element | Node | Doc
       }
     }
   }
-  // }
+}
+
+/**
+ * Creates a regular expression for a particular variable
+ * * Find values between "{{" and "}}" and not between html tags "<" and ">"
+ * * Variable must start with a "$" and is not followed by a "\d" or "."
+ *    * Valid Examples: {{$cat}}, {{$i.name}}
+ *    * Invalid Examples: {{$234}}, {{$.name}}
+ *
+ * @export
+ * @param {string} key The variable without braces and dollar sign `a.b.c`
+ * @returns {RegExp} The regular expression to match a variable
+ */
+export function variableMatch(key: string, braces = true): RegExp {
+  if (braces)
+    return new RegExp(`\\{\\{(\\$(?!(\\d|\\.))${key}[.\\w]*)(?![^\\<]*\\>)\\}\\}`, 'g')
+  else
+    return new RegExp(`(\\$(?!(\\d|\\.))${key}[.\\w]*)(?![^\\<]*\\>)`, 'g')
+}
+
+/**
+ * Gets data based on the scope of the search
+ *
+ * @export
+ * @param {string} search The search `a.b.c`
+ * @param {TemplateData} data The template data
+ * @param {Nullable<string>} [scope] The scoped item
+ * @param {(Nullable<string | number>)} [key] The key
+ * @returns
+ */
+export function getScopeData(search: string, data: TemplateData, scope?: Nullable<string>, key?: Nullable<string | number>) {
+  let dataToSearch = data.originalData
+  // console.log('scope', scope)
+  if (search.split('.').length == 1 && !scope) {
+    return data.originalData[search.replace(/^\$/, '')]
+  } if (typeof scope == 'string' && scope.length > 0) {
+    dataToSearch = data.scopes && data.scopes.length > 0 ?
+      (data.scopes.find(i => i.reference == scope.replace(/^\$/, '')) || { data: {} }).data : {}
+  }
+  // console.log(scope, search, dataToSearch)
+  // console.log('search', search, key, search.replace(new RegExp(`^\\$${scope}`), (key && ['string', 'number'].includes(typeof key) ? key : '').toString()).replace(/^\$/, ''))
+  return find(search.replace(new RegExp(`^\\$${scope}`), (key || search.replace(/^\$/, '')).toString()), dataToSearch)
 }

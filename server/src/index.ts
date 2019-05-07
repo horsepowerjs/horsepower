@@ -1,11 +1,11 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { Server, AppSettings } from './Server'
-import { applicationPath, env, getConfig } from './helper'
+import { env, getConfig } from './helper'
 import { Client } from './Client'
 import * as shell from 'shelljs'
 
-export { AppSettings, RouterSettings, ViewSettings } from './Server'
+export { AppSettings, RouterSettings, ViewSettings, DBMysqlSettings } from './Server'
 export * from './helper'
 export * from './Client'
 export * from './Response'

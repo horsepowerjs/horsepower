@@ -1,7 +1,7 @@
 import { Template } from './extend';
-import { step, replaceHolders, getVariables } from '.';
+import { step, getVariableValues, getScopeData, variableMatch, getVariables, getVariableStrings } from '.';
 import { Mixin } from './mixin';
-import { TemplateData, getScopeData } from '..';
+import { TemplateData } from '..';
 
 // <if :="i == 0">...</if>
 // <elif :="i == 1">...</elif>
@@ -38,16 +38,23 @@ export function ifBlock(root: Template, element: Element, data: TemplateData, mi
     // the node is an if/elif node, test its conditions
     else {
       let condition = node.getAttribute(':') || 'false'
-      const esc = s => s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      let test = getVariables(condition).join('|')
 
-      let evaluate = condition.replace(new RegExp(esc(test), 'g'), (f) => {
-        console.log(f)
-        return 'a'
-      })
-      console.log(evaluate)
-      // console.log(condition, getScopeData([0], data))
-      // let result = !!eval(replaceHolders(condition, data))
+      // let variable = getVariableValues(condition)[0] || ''
+
+      let varStrings = getVariableStrings(condition)
+      console.log('strings:', varStrings)
+      let evaluate = varStrings.length == 0 ? condition : varStrings.map(key => {
+
+        let breadcrumb = key.split('.')
+        let scope = breadcrumb.length > 1 ? breadcrumb[0] : null
+
+        let dataObject = getScopeData(breadcrumb.join('.'), data, scope)
+
+        return condition.replace(variableMatch(key), dataObject)
+      }).join(' ').trim()
+
+      console.log('eval:', evaluate)
+
       let result = !!eval(evaluate)
       // The test failed go to the next node
       if (!result) continue

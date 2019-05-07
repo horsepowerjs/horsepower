@@ -1,7 +1,7 @@
-import { step, getVariables } from '.'
+import { step, getVariableValues, getScopeData, variableMatch } from '.'
 import { Template } from './extend'
 import { Mixin } from './mixin';
-import { TemplateData, getScopeData, variableMatch } from '..';
+import { TemplateData } from '..';
 
 // <for :="i from 10 through 15">{{$i}}</for> <!-- 10,11,12,13,14,15 -->
 // <for :="i from 10 thru 15">{{$i}}</for>    <!-- 10,11,12,13,14,15 -->
@@ -34,7 +34,7 @@ export async function forBlock(root: Template, element: Element, data: TemplateD
 
     if (matches[1].startsWith('{{$') && matches[1].endsWith('}}')) {
       // Replace the start variable with an actual number
-      start = parseInt(getScopeData(getVariables(matches[1])[0], data))
+      start = parseInt(getScopeData(getVariableValues(matches[1])[0], data))
     } else {
       start = parseInt(matches[1])
     }
@@ -43,7 +43,7 @@ export async function forBlock(root: Template, element: Element, data: TemplateD
 
     if (matches[3].startsWith('{{$') && matches[3].endsWith('}}')) {
       // Replace the end variable with an actual number
-      end = parseInt(getScopeData(getVariables(matches[3])[0], data))
+      end = parseInt(getScopeData(getVariableValues(matches[3])[0], data))
     } else {
       end = parseInt(matches[3])
     }

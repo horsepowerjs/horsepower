@@ -1,6 +1,6 @@
 import { Template, parseFile, step, extend, getData, find } from './helpers'
 import { getMixins } from './helpers/mixin'
-import { minify } from 'html-minifier'
+import { minify, Options } from 'html-minifier'
 
 export interface TemplateData {
   originalData: { [key: string]: any }
@@ -12,28 +12,6 @@ export interface TemplateData {
 
 export type Nullable<T> = T | null | undefined
 
-// Find values between "{{" and "}}" and not between html tags "<" and ">"
-// Starts with a "$" and not followed by a "\d" or "."
-// Valid Examples: {{$cat}}, {{$i.name}}
-// Invalid Examples: {{$234}}, {{$.name}}
-export function variableMatch(key: string) {
-  return new RegExp(`\\{\\{(\\$(?!(\\d|\\.))${key}[.\\w]*)(?![^\\<]*\\>)\\}\\}`, 'g')
-}
-
-export function getScopeData(search: string, data: TemplateData, scope?: Nullable<string>, key?: Nullable<string | number>) {
-  let dataToSearch = data.originalData
-  // console.log('scope', scope)
-  if (search.split('.').length == 1 && !scope) {
-    return data.originalData[search.replace(/^\$/, '')]
-  } if (typeof scope == 'string' && scope.length > 0) {
-    dataToSearch = data.scopes && data.scopes.length > 0 ?
-      (data.scopes.find(i => i.reference == scope.replace(/^\$/, '')) || { data: {} }).data : {}
-  }
-  // console.log(scope, search, dataToSearch)
-  // console.log('search', search, key, search.replace(new RegExp(`^\\$${scope}`), (key && ['string', 'number'].includes(typeof key) ? key : '').toString()).replace(/^\$/, ''))
-  return find(search.replace(new RegExp(`^\\$${scope}`), (key || search.replace(/^\$/, '')).toString()), dataToSearch)
-}
-
 export class Red5Template {
 
   private templateData: TemplateData
@@ -42,7 +20,14 @@ export class Red5Template {
     this.templateData = options
   }
 
-  public async build(tpl: Template) {
+  /**
+   * Builds the Template
+   *
+   * @param {Template} tpl The template to build
+   * @returns {Promise<Template>} The rebuilt template
+   * @memberof Red5Template
+   */
+  public async build(tpl: Template): Promise<Template> {
     let rootTpl = await extend(tpl)
     let mixins = getMixins(rootTpl)
     await step(rootTpl, rootTpl.document, this.templateData, mixins)
@@ -54,14 +39,23 @@ export class Red5Template {
     return rootTpl
   }
 
-  public static async render(file: string, data: object = {}) {
+  /**
+   * Renders a template
+   *
+   * @static
+   * @param {string} file The starting file to render
+   * @param {object} [data={}] The template data
+   * @param {Options} [minifyOptions] Options to minify the output using [html-minifier](https://www.npmjs.com/package/html-minifier#options-quick-reference)
+   * @returns {Promise<string>}
+   * @memberof Red5Template
+   */
+  public static async render(file: string, data: object = {}, minifyOptions?: Options): Promise<string> {
     let templateData: TemplateData = { originalData: {}, scopes: [] }
     templateData.originalData = Object.assign<object, object>(templateData.originalData, data)
     let r5tpl = new Red5Template(templateData)
-    let tpl = await parseFile(file)
-    let dom = await r5tpl.build(tpl)
-    let html = dom.dom.serialize()
-    return minify(html, {
+    let html = (await r5tpl.build(await parseFile(file))).dom.serialize()
+
+    let defaultMinifyOptions = {
       collapseWhitespace: true,
       collapseBooleanAttributes: true,
       decodeEntities: true,
@@ -75,6 +69,8 @@ export class Red5Template {
       useShortDoctype: true,
       minifyCSS: true,
       minifyJS: true
-    })
+    }
+
+    return minify(html, minifyOptions ? Object.assign(defaultMinifyOptions, minifyOptions) : defaultMinifyOptions)
   }
 }

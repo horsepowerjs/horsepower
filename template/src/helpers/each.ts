@@ -1,7 +1,7 @@
-import { step, getVariables } from '.'
+import { step, getVariableValues, getScopeData, variableMatch } from '.'
 import { Template } from './extend'
 import { Mixin } from './mixin'
-import { TemplateData, getScopeData, variableMatch } from '..'
+import { TemplateData } from '..'
 
 // <each :="[key, value] in {{$items}}">
 //   <h1>{{$key}} -> {{$value}}</h1>
@@ -43,7 +43,7 @@ export async function eachBlock(root: Template, element: Element, data: Template
     }
 
     // console.log('placeholder', JSON.stringify(placeholderData))
-    let variable = getVariables(placeholderData)[0] || ''
+    let variable = getVariableValues(placeholderData)[0] || ''
 
     let frag = element.ownerDocument.createDocumentFragment()
     let breadcrumb = variable.split('.')
