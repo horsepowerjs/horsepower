@@ -1,5 +1,4 @@
 import * as path from 'path'
-import { log } from '../'
 
 /**
  * Get the path to the storage folder
@@ -67,6 +66,16 @@ export function appPath(childPath: string = '') {
 export function env(key: string, fallback: string = '') {
   if (process.env[key]) return process.env[key]
   return fallback
+}
+
+/**
+ * Checks if the current application state is in production mode
+ *
+ * @export
+ * @returns {boolean}
+ */
+export function isProduction(): boolean {
+  return env('APP_ENV', 'production') == 'production'
 }
 
 /**

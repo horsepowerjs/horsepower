@@ -1,10 +1,11 @@
-import { Template } from './extend';
-import { step, getVariableValues, getScopeData, variableMatch, getVariables, getVariableStrings } from '.';
-import { Mixin } from './mixin';
-import { TemplateData } from '..';
+import { Template } from './extend'
+import { step, replaceVariables } from '.'
+import { Mixin } from './mixin'
+import { TemplateData } from '..'
 
-// <if :="i == 0">...</if>
-// <elif :="i == 1">...</elif>
+// <if :="{{$i}} == 0">...</if>
+// <elif :="{{$i}} == 1">...</elif>
+// <elif :="{{$i}} == 2 && {{$j}} == 3">...</elif>
 // <else>...</else>
 
 export function ifBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
@@ -39,23 +40,12 @@ export function ifBlock(root: Template, element: Element, data: TemplateData, mi
     else {
       let condition = node.getAttribute(':') || 'false'
 
-      // let variable = getVariableValues(condition)[0] || ''
+      // Replace all the variables within the condition
+      condition = replaceVariables(condition, data)
 
-      let varStrings = getVariableStrings(condition)
-      console.log('strings:', varStrings)
-      let evaluate = varStrings.length == 0 ? condition : varStrings.map(key => {
-
-        let breadcrumb = key.split('.')
-        let scope = breadcrumb.length > 1 ? breadcrumb[0] : null
-
-        let dataObject = getScopeData(breadcrumb.join('.'), data, scope)
-
-        return condition.replace(variableMatch(key), dataObject)
-      }).join(' ').trim()
-
-      console.log('eval:', evaluate)
-
-      let result = !!eval(evaluate)
+      // Test the condition as a boolean value
+      // TODO: Either make the condition more secure or find a way to remove the usage of eval
+      let result = !!eval(condition)
       // The test failed go to the next node
       if (!result) continue
       // The test succeeded add the children to the fragment

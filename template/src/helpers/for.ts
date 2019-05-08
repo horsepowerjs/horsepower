@@ -1,4 +1,4 @@
-import { step, getVariableValues, getScopeData, variableMatch } from '.'
+import { step, getVariableValues, getScopeData } from '.'
 import { Template } from './extend'
 import { Mixin } from './mixin';
 import { TemplateData } from '..';

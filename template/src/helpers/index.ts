@@ -65,6 +65,37 @@ export function getVariableStrings(string: string): string[] {
   // return [...new Set(match.match(/(?!(\d|\.))[.\w]+/g) || [])]
 }
 
+/**
+ * Gets variable information about a string
+ *
+ * @export
+ * @param {string} string The string to analyze
+ * @param {*} data The data that is associated to the variables
+ * @returns
+ */
+export function getStringInfo(string: string, data: any) {
+  return getVariableStrings(string).map(key => {
+    let breadcrumb = key.split('.')
+    let scope = breadcrumb.length > 1 ? breadcrumb[0] : null
+    let dataObject = getScopeData(breadcrumb.join('.'), data, scope)
+    return { key, data: dataObject }
+  })
+}
+
+/**
+ * Replaces the variables in a string with actual data
+ *
+ * @export
+ * @param {string} string The string
+ * @param {*} data Data that will replace the variables
+ * @returns
+ */
+export function replaceVariables(string: string, data: any) {
+  getStringInfo(string, data).forEach(i => {
+    string = string.replace(variableMatch(i.key), i.data)
+  })
+  return string
+}
 
 
 /**
@@ -229,9 +260,9 @@ export async function step(root: Template, node: Document | Element | Node | Doc
  */
 export function variableMatch(key: string, braces = true): RegExp {
   if (braces)
-    return new RegExp(`\\{\\{(\\$(?!(\\d|\\.))${key}[.\\w]*)(?![^\\<]*\\>)\\}\\}`, 'g')
+    return new RegExp(`\\{\\{(\\$(?!(\\d|\\.))\\b${key}\\b[.\\w]*)(?![^\\<]*\\>)\\}\\}`, 'g')
   else
-    return new RegExp(`(\\$(?!(\\d|\\.))${key}[.\\w]*)(?![^\\<]*\\>)`, 'g')
+    return new RegExp(`(\\$(?!(\\d|\\.))\\b${key}\\b[.\\w]*)(?![^\\<]*\\>)`, 'g')
 }
 
 /**

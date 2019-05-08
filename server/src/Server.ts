@@ -13,7 +13,7 @@ import { Router } from '@red5/router'
 import { Storage, StorageSettings } from '@red5/storage'
 import { MiddlewareManager } from '@red5/middleware'
 import { Client, Response, log } from '.'
-import { env, getConfig, storagePath, configPath } from './helper'
+import { env, getConfig, storagePath, configPath, isProduction } from './helper'
 
 export interface RouterSettings {
   controllers: string
@@ -278,7 +278,7 @@ export class Server {
    * @memberof Server
    */
   public static async sendDebugPage(client: Client, data: { [key: string]: any }) {
-    const prod = env('APP_ENV', 'production') == 'production'
+    const prod = isProduction()
     return await this.getErrorPage(client, !prod ? 1000 : 500, !prod ? data : {})
   }
 

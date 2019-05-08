@@ -1,9 +1,10 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { Server, AppSettings } from './Server'
-import { env, getConfig } from './helper'
+import { getConfig } from './helper'
 import { Client } from './Client'
 import * as shell from 'shelljs'
+import { isProduction } from '.';
 
 export { AppSettings, RouterSettings, ViewSettings, DBMysqlSettings } from './Server'
 export * from './helper'
@@ -42,7 +43,7 @@ export class log {
       await new Promise(r => fs.appendFile(errorPath, `${errMsg}\n`, () => r()))
     }
     // Log the error to the console
-    if (env('APP_ENV', 'production') != 'production') {
+    if (!isProduction()) {
       // let trace = typeof message == 'string' ? '' : message.stack
       // console.trace(trace)
       console.error(`\x1b[31m${errMsg}\x1b[0m`)
@@ -71,7 +72,7 @@ export class log {
       await new Promise(r => fs.appendFile(errorPath, `${warnMsg}\n`, () => r()))
     }
     // Log the error to the console
-    if (env('APP_ENV', 'production') != 'production') {
+    if (!isProduction()) {
       // let trace = typeof message == 'string' ? '' : message.stack
       // console.trace(trace)
       // console.error(`\x1b[226m${warnMsg}\x1b[0m`)
@@ -82,7 +83,7 @@ export class log {
     let d = new Date()
     let msg = (client.request.method || 'GET') + ' ' + (client.request.url || '/')
     let app = getConfig<AppSettings>('app')
-    if (env('APP_ENV', 'production') != 'production') {
+    if (!isProduction()) {
       if ([
         // Informational
         100, 101, 102,
