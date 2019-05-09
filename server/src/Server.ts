@@ -365,9 +365,6 @@ export class Server {
       if (header) headers.push([h, header.toString()])
     }
 
-    // Write the response headers
-    res.writeHead(client.response.code, <any>headers)
-
     // Log the request
     log.access(client)
 
@@ -379,24 +376,40 @@ export class Server {
       return
     }
 
+    let responseBody: string | Buffer = ''
+
     // Generate the response body
     if (client.response.filePath) {
       // We are sending a file to the user, open it and read it
       // If the file is sent in chunks this will handle it
+      // Write the response headers
+      res.writeHead(client.response.code, <any>headers)
       let stream: fs.ReadStream = fs.createReadStream(client.response.filePath, { start, end })
         .on('open', () => stream.pipe(<any>res))
         .on('close', () => res.end())
         .on('error', err => res.end(err))
     } else {
       if (client.response.templatePath) {
-        res.write(await Template.render(client))
+        try {
+          responseBody = await Template.render(client)
+        } catch (e) {
+          await this.getErrorPage(client, 500)
+          console.log('caught you')
+        }
+        // res.write(await Template.render(client))
       } else if (client.response.buffer) {
-        res.write(client.response.buffer)
+        responseBody = client.response.buffer
       } else {
-        res.write(client.response.body)
+        responseBody = client.response.body
       }
+
+      // Write the response headers
+      res.writeHead(client.response.code, <any>headers)
+      // Write the response body
+      res.write(responseBody)
       res.end()
     }
+
     client.session && await client.session.end()
   }
 }

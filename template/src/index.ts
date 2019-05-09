@@ -50,27 +50,32 @@ export class Red5Template {
    * @memberof Red5Template
    */
   public static async render(file: string, data: object = {}, minifyOptions?: Options): Promise<string> {
-    let templateData: TemplateData = { originalData: {}, scopes: [] }
-    templateData.originalData = Object.assign<object, object>(templateData.originalData, data)
-    let r5tpl = new Red5Template(templateData)
-    let html = (await r5tpl.build(await parseFile(file))).dom.serialize()
+    try {
+      let templateData: TemplateData = { originalData: {}, scopes: [] }
+      templateData.originalData = Object.assign<object, object>(templateData.originalData, data)
+      let r5tpl = new Red5Template(templateData)
+      let html = ''
+      html = (await r5tpl.build(await parseFile(file))).dom.serialize()
 
-    let defaultMinifyOptions = {
-      collapseWhitespace: true,
-      collapseBooleanAttributes: true,
-      decodeEntities: true,
-      removeAttributeQuotes: true,
-      removeComments: true,
-      removeEmptyAttributes: true,
-      removeOptionalTags: true,
-      removeRedundantAttributes: true,
-      removeScriptTypeAttributes: true,
-      removeStyleLinkTypeAttributes: true,
-      useShortDoctype: true,
-      minifyCSS: true,
-      minifyJS: true
+      let defaultMinifyOptions = {
+        collapseWhitespace: true,
+        collapseBooleanAttributes: true,
+        decodeEntities: true,
+        removeAttributeQuotes: true,
+        removeComments: true,
+        removeEmptyAttributes: true,
+        removeOptionalTags: true,
+        removeRedundantAttributes: true,
+        removeScriptTypeAttributes: true,
+        removeStyleLinkTypeAttributes: true,
+        useShortDoctype: true,
+        minifyCSS: true,
+        minifyJS: true
+      }
+
+      return minify(html, minifyOptions ? Object.assign(defaultMinifyOptions, minifyOptions) : defaultMinifyOptions)
+    } catch (e) {
+      throw e
     }
-
-    return minify(html, minifyOptions ? Object.assign(defaultMinifyOptions, minifyOptions) : defaultMinifyOptions)
   }
 }

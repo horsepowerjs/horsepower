@@ -3,7 +3,7 @@ import { Template } from './extend'
 import { block } from './block'
 import { ifBlock } from './if'
 import { JSDOM } from 'jsdom'
-import { importBlock } from './import'
+import { includeBlock, requireBlock } from './include'
 import { debugBlock } from './debug'
 import { eachBlock } from './each'
 import { forBlock } from './for'
@@ -154,7 +154,7 @@ export function makeFragment(element: string | Buffer | Element): DocumentFragme
 }
 
 /**
- * Makes a document fragment from a file with a root node
+ * Makes a document fragment from a file with a single root node
  *
  * @export
  * @param {string} file The path to the file
@@ -209,8 +209,11 @@ export async function step(root: Template, node: Document | Element | Node | Doc
       let name = child.nodeName.toLowerCase()
       // Elements based on tag name
       switch (name) {
-        case 'import':
-          await importBlock(root, child, data, mixins)
+        case 'include':
+          await includeBlock(root, child, data, mixins)
+          return await step(root, node, data, mixins)
+        case 'require':
+          await requireBlock(root, child, data, mixins)
           return await step(root, node, data, mixins)
         case 'block':
           await block(root, child, data, mixins)
