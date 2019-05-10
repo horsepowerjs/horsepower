@@ -1,6 +1,6 @@
 {
     "name": "@red5/session",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Session management for the red5 http server.",
     "main": "lib/index.js",
     "scripts": {
