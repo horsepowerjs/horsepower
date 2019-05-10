@@ -3,6 +3,7 @@ import * as path from 'path'
 export interface StorageDisk {
   driver: string
   root: string
+  options?: { [key: string]: any }
 }
 
 export interface StorageSettings {
@@ -96,18 +97,20 @@ export abstract class Storage {
     if (typeof name == 'string') config = this.config.disks[name]
     if (!config) throw new Error(`Cannot find config for "${driver}"`)
     try {
-      // Try and load the driver from red5-storage
+      // Try and load a builtin driver from the "drivers" directory
       let driver = require(path.join(__dirname, './drivers', config.driver))
       return new driver.default(config) as Storage
     } catch (e) {
       try {
-        // Try and load the driver from the root node_modules
+        // Try and load the driver from the root "node_modules" in the users project
         if (require.main && require.main.require) {
           let driver = require.main.require(config.driver)
           return new driver.default(config) as Storage
         }
-      } catch (e) { }
+        throw new Error(`Cannot find and mount the driver "${config.driver}"`)
+      } catch (e) {
+        throw new Error(`Cannot find and mount the driver "${config.driver}"`)
+      }
     }
-    throw new Error(`Cannot find driver "${config.driver}"`)
   }
 }

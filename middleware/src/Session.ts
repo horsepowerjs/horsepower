@@ -9,3 +9,10 @@ export class StartSession implements Middleware {
     return true
   }
 }
+
+export class Auth implements Middleware {
+  public async handle(client: Client) {
+    // TODO: Implement auth verification
+    return true
+  }
+}
