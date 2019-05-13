@@ -1,6 +1,6 @@
 {
     "name": "@red5/storage",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Storage manager for the red5 http server.",
     "main": "lib/index.js",
     "scripts": {
@@ -16,7 +16,7 @@
         "mkdirp": "^0.5.1"
     },
     "devDependencies": {
-        "@types/cookie": "^0.3.1",
+        "@types/cookie": "^0.3.2",
         "@types/mkdirp": "^0.5.2"
     },
     "files": [

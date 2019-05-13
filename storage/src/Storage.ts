@@ -29,12 +29,13 @@ export abstract class Storage {
 
   private static config: StorageSettings | null = null
 
-  public static setConfig(confFile: StorageSettings) {
-    this.config = confFile
-  }
 
   public constructor(config: StorageDisk) {
     this.disk = Object.freeze(config)
+  }
+
+  public static setConfig(config: StorageSettings) {
+    this.config = config
   }
 
   public static save(path: string, data: string | Buffer) {

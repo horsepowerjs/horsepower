@@ -3,7 +3,7 @@ import { CookieSerializeOptions, parse, serialize } from 'cookie'
 import { Client, storagePath, getConfig, AppSettings } from '@red5/server'
 import { Storage } from '@red5/storage'
 import * as crypto from 'crypto'
-import { stat, readFile, writeFile, rename, unlink } from 'fs'
+import { stat, writeFile, rename, unlink } from 'fs'
 
 export interface SessionItem {
   key: string

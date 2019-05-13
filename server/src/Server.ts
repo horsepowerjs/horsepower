@@ -1,19 +1,19 @@
+import { Router } from '@red5/router'
+import { Storage, StorageSettings } from '@red5/storage'
+import { MiddlewareManager } from '@red5/middleware'
+
 import * as http from 'http'
 import * as https from 'https'
 import * as fs from 'fs'
 import * as mime from 'mime-types'
 import * as path from 'path'
 import * as url from 'url'
-import { Template } from './Template'
-import * as helpers from './helper'
 import * as shell from 'shelljs'
 import { serialize, CookieSerializeOptions } from 'cookie'
 
-import { Router } from '@red5/router'
-import { Storage, StorageSettings } from '@red5/storage'
-import { MiddlewareManager } from '@red5/middleware'
+import { Template } from './Template'
 import { Client, Response, log } from '.'
-import { env, getConfig, storagePath, configPath, isProduction } from './helper'
+import { getConfig, storagePath, configPath, applicationPath, isProduction } from './helper'
 
 export interface RouterSettings {
   controllers: string
@@ -68,7 +68,7 @@ export class Server {
 
   public static start() {
     // Load the application env file if it exists
-    let envPath = helpers.applicationPath('.env')
+    let envPath = applicationPath('.env')
     let env = require('dotenv').config({ path: envPath })
 
     // Load the application configuration
@@ -88,7 +88,7 @@ export class Server {
       // Output the config settings
       console.log(`Red5 is now listening on port "${this.app.port}" (Not yet accepting connections)`)
 
-      // Config locations
+      // Get configurations
       let views = getConfig<ViewSettings>('view')
       let storage = getConfig<StorageSettings>('storage')
       let db = getConfig<DBSettings>('db')
@@ -212,7 +212,7 @@ export class Server {
 
       // Attempt to send the file from the public folder
       if (urlInfo.pathname) {
-        let filePath = path.join(helpers.applicationPath('public'), urlInfo.pathname)
+        let filePath = path.join(applicationPath('public'), urlInfo.pathname)
         try {
           let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
           if (stats.isFile()) {

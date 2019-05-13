@@ -1,4 +1,4 @@
-import { Template, parseFile, step, extend, getData, find } from './helpers'
+import { Template, parseFile, step, extend, getData } from './helpers'
 import { getMixins } from './helpers/mixin'
 import { minify, Options } from 'html-minifier'
 
@@ -54,8 +54,7 @@ export class Red5Template {
       let templateData: TemplateData = { originalData: {}, scopes: [] }
       templateData.originalData = Object.assign<object, object>(templateData.originalData, data)
       let r5tpl = new Red5Template(templateData)
-      let html = ''
-      html = (await r5tpl.build(await parseFile(file))).dom.serialize()
+      let html = (await r5tpl.build(await parseFile(file))).dom.serialize()
 
       let defaultMinifyOptions = {
         collapseWhitespace: true,
