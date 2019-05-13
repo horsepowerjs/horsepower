@@ -1,6 +1,8 @@
-import { Template, parseFile, step, extend, getData } from './helpers'
+import { Template, parseFile, step, getData } from './helpers'
+import extend from './helpers/extend'
 import { getMixins } from './helpers/mixin'
 import { minify, Options } from 'html-minifier'
+import { Client } from '@red5/server';
 
 export interface TemplateData {
   originalData: { [key: string]: any }
@@ -15,8 +17,10 @@ export type Nullable<T> = T | null | undefined
 export class Red5Template {
 
   private templateData: TemplateData
+  private readonly client: Client
 
-  private constructor(options: TemplateData) {
+  private constructor(client: Client, options: TemplateData) {
+    this.client = client
     this.templateData = options
   }
 
@@ -30,7 +34,7 @@ export class Red5Template {
   public async build(tpl: Template): Promise<Template> {
     let rootTpl = await extend(tpl)
     let mixins = getMixins(rootTpl)
-    await step(rootTpl, rootTpl.document, this.templateData, mixins)
+    await step(this.client, rootTpl, rootTpl.document, this.templateData, mixins)
     if (rootTpl.document.documentElement) {
       rootTpl.document.documentElement.innerHTML =
         rootTpl.document.documentElement.innerHTML
@@ -49,11 +53,13 @@ export class Red5Template {
    * @returns {Promise<string>}
    * @memberof Red5Template
    */
-  public static async render(file: string, data: object = {}, minifyOptions?: Options): Promise<string> {
+  public static async render(client: Client, data: object = {}, minifyOptions?: Options): Promise<string> {
     try {
+      let file = client.response.templatePath
+      if (!file) return ''
       let templateData: TemplateData = { originalData: {}, scopes: [] }
       templateData.originalData = Object.assign<object, object>(templateData.originalData, data)
-      let r5tpl = new Red5Template(templateData)
+      let r5tpl = new Red5Template(client, templateData)
       let html = (await r5tpl.build(await parseFile(file))).dom.serialize()
 
       let defaultMinifyOptions = {

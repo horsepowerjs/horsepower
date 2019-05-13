@@ -1,4 +1,6 @@
 import * as path from 'path'
+import { getConfig } from '@red5/server'
+
 
 export interface StorageDisk {
   driver: string
@@ -32,10 +34,6 @@ export abstract class Storage {
 
   public constructor(config: StorageDisk) {
     this.disk = Object.freeze(config)
-  }
-
-  public static setConfig(config: StorageSettings) {
-    this.config = config
   }
 
   public static save(path: string, data: string | Buffer) {
@@ -91,7 +89,10 @@ export abstract class Storage {
    */
   public static mount(disk: string): Storage
   public static mount(driver?: string): Storage {
-    if (!this.config) throw new Error('No configuration file loaded')
+
+    this.config = getConfig<StorageSettings>('storage') || null
+
+    if (!this.config) throw new Error('No storage configuration file found at "config/storage.js"')
     if (!driver) driver = this.config.default
     let name = Object.keys(this.config.disks).find(disk => disk == driver)
     let config: StorageDisk | null = null

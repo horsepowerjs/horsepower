@@ -1,4 +1,4 @@
-import { replaceVariables } from '.'
+import { replaceVariables } from '../helpers'
 import { TemplateData } from '..'
 import { isProduction } from '@red5/server'
 
@@ -15,7 +15,7 @@ import { isProduction } from '@red5/server'
 
 // TODO: Add support for self closing tag: `<debug ... />`, currently this breaks the application
 // TODO: Either make the `eval` more secure or find a way to remove the usage of `eval`
-export function debugBlock(element: Element, data: TemplateData) {
+export default async function (element: Element, data: TemplateData) {
   // If this is production do not debug just remove the element unless the element has the prod flag
   if (isProduction() && !element.hasAttribute('prod')) return element.remove()
 

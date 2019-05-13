@@ -1,6 +1,7 @@
 import { Template } from './extend';
 import { step } from '.';
 import { TemplateData } from '..';
+import { Client } from '@red5/server';
 
 export interface Mixin {
   name: string
@@ -42,7 +43,7 @@ export function getMixins(tpl: Template) {
 //   element.remove()
 // }
 
-export function includeMixin(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
+export function includeMixin(client: Client, root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let name = element.getAttribute('use')
   if (!element.ownerDocument) {
     element.remove()
@@ -57,7 +58,7 @@ export function includeMixin(root: Template, element: Element, data: TemplateDat
       }
     }
   }
-  step(root, frag, data, mixins)
+  step(client, root, frag, data, mixins)
   element.replaceWith(frag)
   return
   // let name = element.getAttribute('mixin') || ''

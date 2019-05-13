@@ -1,7 +1,8 @@
-import { Template } from './extend';
-import { step } from '.';
-import { Mixin } from './mixin';
+import { Template } from '../helpers/extend';
+import { step } from '../helpers';
+import { Mixin } from '../helpers/mixin';
 import { TemplateData } from '..';
+import { Client } from '@red5/server';
 
 // <!-- Root blocks do not have content -->
 // <block name="xxx"></block>
@@ -9,7 +10,7 @@ import { TemplateData } from '..';
 // <!-- Child blocks have content and fill the parent -->
 // <block name="xxx">...</block>
 
-export async function block(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
+export default async function (client: Client, root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let name = element.getAttribute('name')
   if (!element.ownerDocument) return
   let frag = element.ownerDocument.createDocumentFragment()
@@ -21,6 +22,6 @@ export async function block(root: Template, element: Element, data: TemplateData
       }
     }
   }
-  await step(root, frag, data, mixins)
+  await step(client, root, frag, data, mixins)
   element.replaceWith(frag)
 }

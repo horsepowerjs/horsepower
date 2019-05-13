@@ -27,7 +27,7 @@ export class Response {
   private _cookies: (Cookie & CookieOptions)[] = []
 
   public constructor(private _body: string = '', private _headers: OutgoingHttpHeaders = {
-    'Content-Type': 'text/html'
+    'Content-Type': 'text/html; charset=utf-8'
   }, private _code: number = 200, private _length: number = 0) { }
 
   public get code(): number { return this._code }
@@ -221,7 +221,7 @@ export class Response {
     return this
       .setBody(data)
       .setCode(code)
-      .setHeader('Content-Type', 'text/html')
+      .setHeader('Content-Type', 'text/html; charset=utf-8')
   }
 
   /**

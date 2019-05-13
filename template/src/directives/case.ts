@@ -1,7 +1,8 @@
-import { Template } from './extend';
-import { step, replaceHolders } from '.';
-import { Mixin } from './mixin';
+import { Template } from '../helpers/extend';
+import { step, replaceHolders } from '../helpers';
+import { Mixin } from '../helpers/mixin';
 import { TemplateData } from '..';
+import { Client } from '@red5/server';
 
 // <case :="{{$item}}">
 //   <when :="1">...</when>
@@ -9,7 +10,7 @@ import { TemplateData } from '..';
 //   <default>...</default>
 // </case>
 
-export function caseBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
+export default async function (client: Client, root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   if (!element.ownerDocument) return
   let nodes: Element[] = Array.from(element.querySelectorAll('when, default'))
 
@@ -36,7 +37,7 @@ export function caseBlock(root: Template, element: Element, data: TemplateData, 
         frag.appendChild(child.cloneNode(true))
       }
     }
-    step(root, frag, data, mixins)
+    step(client, root, frag, data, mixins)
     element.replaceWith(frag)
     break
   }

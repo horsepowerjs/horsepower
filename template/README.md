@@ -10,13 +10,13 @@ This is the basic usage. All examples use the red5 http server.
 
 ```js
 module.exports.main = async function(client) {
-  return client.response.render('welcome.rtpl', {
+  return client.response.render('welcome.mix', {
     name: 'Billy Bob Joe'
   })
 }
 ```
 
-**welcome.rtpl**
+**welcome.mix**
 
 ```html
 <html>
@@ -52,7 +52,7 @@ New variables can be created within cases that create new scopes, such as `each`
 
 A block is a way to group a block of data this data can then be used in other places. The block file must also use `extends` to extend a parent file. The parent file then also has a matching block statement.
 
-**root.rtpl**
+**root.mix**
 
 ```html
 <body>
@@ -61,7 +61,7 @@ A block is a way to group a block of data this data can then be used in other pl
 </body>
 ```
 
-**example.rtpl**
+**example.mix**
 
 ```html
 <extends file="root" />
@@ -79,11 +79,11 @@ A block is a way to group a block of data this data can then be used in other pl
 </block>
 ```
 
-When rendering the file, you would render **example.rtpl** this will then load **root.rtpl** and build the output.
+When rendering the file, you would render **example.mix** this will then load **root.mix** and build the output.
 
 ```js
 module.exports.main = async function(client) {
-  return client.response.render('example.rtpl')
+  return client.response.render('example.mix')
 }
 ```
 
@@ -106,7 +106,7 @@ An each is used to to loop over an array of items such as strings, numbers, obje
 
 ```js
 module.exports.main = async function(client) {
-  return client.response.render('example.rtpl', {
+  return client.response.render('example.mix', {
     todo: ['Eat', 'Sleep', 'Repeat'],
     months: [
       { name: 'January', 'days': 31 },
@@ -135,7 +135,7 @@ Each also comes with an else statement which will execute if the array is empty.
 
 ```js
 module.exports.main = async function(client) {
-  return client.response.render('example.rtpl', {
+  return client.response.render('example.mix', {
     empty: []
   })
 }

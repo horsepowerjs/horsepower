@@ -1,16 +1,24 @@
-import { Template } from "./extend";
-import { readFile } from 'fs'
+import * as path from 'path'
+import { Template } from './extend'
 import { JSDOM } from 'jsdom'
+import { Storage } from '@red5/storage'
 
 export function parseFile(file: string) {
-  return new Promise<Template>(resolve => {
-    readFile(file, (err, data) => {
-      let tpl = new JSDOM(data)
-      resolve({
-        file, dom: tpl,
-        document: tpl.window.document,
-        body: tpl.window.document.body as HTMLBodyElement
-      })
+  return new Promise<Template>(async resolve => {
+    let data = await Storage.mount('resources').load(path.join('views', file))
+    let tpl = new JSDOM(data)
+    resolve({
+      file, dom: tpl,
+      document: tpl.window.document,
+      body: tpl.window.document.body as HTMLBodyElement
     })
+    // readFile(file, (err, data) => {
+    //   let tpl = new JSDOM(data)
+    //   resolve({
+    //     file, dom: tpl,
+    //     document: tpl.window.document,
+    //     body: tpl.window.document.body as HTMLBodyElement
+    //   })
+    // })
   })
 }

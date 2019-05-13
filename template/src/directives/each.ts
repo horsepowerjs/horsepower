@@ -1,7 +1,8 @@
-import { step, getVariableValues, getScopeData, variableMatch } from '.'
-import { Template } from './extend'
-import { Mixin } from './mixin'
+import { step, getVariableValues, getScopeData, variableMatch } from '../helpers'
+import { Template } from '../helpers/extend'
+import { Mixin } from '../helpers/mixin'
 import { TemplateData } from '..'
+import { Client } from '@red5/server';
 
 // <each :="[key, value] in {{$items}}">
 //   <h1>{{$key}} -> {{$value}}</h1>
@@ -11,7 +12,7 @@ import { TemplateData } from '..'
 //   <h1>{{$value}}</h1>
 // </each>
 
-export async function eachBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[], scope?: string) {
+export default async function (client: Client, root: Template, element: Element, data: TemplateData, mixins: Mixin[], scope?: string) {
   let query = element.getAttribute(':')
   let nodes: Element[] = []
 
@@ -77,7 +78,7 @@ export async function eachBlock(root: Template, element: Element, data: Template
               return getScopeData(v, data, key, k)
             })
           }
-          await step(root, clone, data, mixins)
+          await step(client, root, clone, data, mixins)
           frag.appendChild(clone)
         }
       }
@@ -120,8 +121,8 @@ export async function eachBlock(root: Template, element: Element, data: Template
     //             }
     //             clone.innerHTML = clone.innerHTML
     //               .replace(new RegExp(match, 'g'), v)
-    //               .replace(new RegExp(`\{\{${key}\}\}`, 'g'), k)
-    //             step(root, clone, dataObject, mixins)
+    //             step(client, roote(new RegExp(`\{\{${key}\}\}`, 'g'), k)
+    //             step(client, root, clone, dataObject, mixins)
     //           } else if (clone.textContent) {
     //             clone.textContent = clone.textContent
     //               .replace(new RegExp(`\{\{${value}\}\}`, 'g'), v)

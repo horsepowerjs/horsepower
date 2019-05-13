@@ -1,9 +1,7 @@
-import * as path from 'path'
 import { CookieSerializeOptions, parse, serialize } from 'cookie'
-import { Client, storagePath, getConfig, AppSettings } from '@red5/server'
+import { Client, getConfig, AppSettings } from '@red5/server'
 import { Storage } from '@red5/storage'
 import * as crypto from 'crypto'
-import { stat, writeFile, rename, unlink } from 'fs'
 
 export interface SessionItem {
   key: string
@@ -24,19 +22,23 @@ export interface SessionRecord {
   creation: Date | undefined | null
   expires: Date | undefined | null
   csrf: string
+  lang: string
   cookie: CookieSerializeOptions & { expires?: Date | number | undefined }
 }
 
-const SESSION_ROOT = 'framework/session'
-
 export class Session {
-  private readonly _originalRecord: SessionRecord = { id: null, creation: null, expires: null, csrf: '', cookie: { path: '/' }, items: [], flash: [] }
+  private readonly _originalRecord: SessionRecord = { id: null, creation: null, expires: null, csrf: '', lang: 'en', cookie: { path: '/' }, items: [], flash: [] }
   private readonly _store: 'file' = 'file'
-  private readonly _root: string = storagePath(SESSION_ROOT)
 
   private _started: boolean = false
   private _record: SessionRecord = this._originalRecord
   private store: Storage
+
+  private get file() { return this._record.id + '.sess' }
+  public get csrf() { return this._record.csrf || '' }
+  public get id() { return this._record.id || '' }
+  public get lang() { return this._record.lang || this._originalRecord.lang }
+  public get created() { return this._record.creation }
 
   public constructor(private client: Client) {
     this.client.session = <any>this
@@ -69,10 +71,9 @@ export class Session {
     }
 
     if (this._store == 'file') {
-      const file = `${this._record.id}.sess`
-      if (await this.store.exists(file)) {
+      if (await this.store.exists(this.file)) {
         // A session with this id already exists, lets load it
-        this._record = JSON.parse((await this.store.load(file)).toString())
+        this._record = JSON.parse((await this.store.load(this.file)).toString())
         this._record.cookie.expires = expires
         this._record.expires = expires
       } else {
@@ -82,6 +83,7 @@ export class Session {
         this._record.id = this._generateHash()
       }
     }
+    if (!this._record.csrf) this.generateCSRF()
     this._record.flash.forEach(i => i.count++)
     this._setCookieHeader()
   }
@@ -91,7 +93,7 @@ export class Session {
    *
    * @memberof Session
    */
-  public async end() {
+  public async close() {
     // The session hasn't been started yet
     if (!this._started) return
     // Remove the flashed items
@@ -111,8 +113,7 @@ export class Session {
     // The session hasn't been started yet
     if (!this._started) return
     if (this._store == 'file') {
-      let sessionPath = path.join(this._root, `${this._record.id}.sess`)
-      await new Promise<void>(r => unlink(sessionPath, () => r()))
+      await this.store.delete(this.file)
     }
     this._record = this._originalRecord
     this._started = false
@@ -125,18 +126,16 @@ export class Session {
    * @memberof Session
    */
   public async regenerateId() {
-    let sessionPath = path.join(this._root, `${this._record.id}.sess`)
+    let oldFile = this.file
     this._record.id = this._generateHash()
-    let newSessionPath = path.join(this._root, `${this._record.id}.sess`)
+    let newFile = this.file
 
     if (this._store == 'file') {
-      let isFile = await new Promise(r => stat(sessionPath, (e, stat) => { return e ? r(false) : r(stat.isFile()) }))
+      let isFile = await this.store.exists(oldFile)
       if (isFile) {
         // Rename the current session file to the new session file
-        await new Promise(r => rename(sessionPath, newSessionPath, () => r()))
-      } else {
-        // Create a new session file
-        await new Promise<void>(r => writeFile(newSessionPath, JSON.stringify(this._record), () => r()))
+        await this.store.move(oldFile, newFile)
+        await this.store.save(newFile, JSON.stringify(this._record))
       }
     }
 
@@ -146,6 +145,16 @@ export class Session {
 
   public generateCSRF(length: number = 32) {
     this._record.csrf = crypto.randomBytes(length).toString('hex')
+  }
+
+  /**
+   * Sets the locale for the current user
+   *
+   * @param {string} locale The locale for the user
+   * @memberof Session
+   */
+  public setLocale(locale: string) {
+    this._record.lang = locale
   }
 
   /**
@@ -278,15 +287,8 @@ export class Session {
   }
 
   private async _save() {
-    // let cookies = parse(<string>this.client.request.headers.cookie || '')
-    // Get the cookie sessid
-    // let id = cookies.sessid || ''
     if (this._record.id && this._store == 'file') {
-      let session = `${this._record.id}.sess`
-      let exists = await this.store.exists(session)
-      if (!exists) {
-        await this.store.save(session, JSON.stringify(this._record))
-      }
+      return await this.store.save(this.file, JSON.stringify(this._record))
     }
     return false
   }

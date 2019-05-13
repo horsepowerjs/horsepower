@@ -83,6 +83,10 @@ npm link @red5/server &
 npm link @red5/storage &
 wait
 
+cd ../template
+npm link @red5/storage &
+wait
+
 printf "${CYAN}Building packages${NC}\n"
 cd ..
 gulp build

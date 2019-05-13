@@ -1,14 +1,15 @@
-import { Template } from './extend'
-import { step, replaceVariables } from '.'
-import { Mixin } from './mixin'
+import { Template } from '../helpers/extend'
+import { step, replaceVariables } from '../helpers'
+import { Mixin } from '../helpers/mixin'
 import { TemplateData } from '..'
+import { Client } from '@red5/server';
 
 // <if :="{{$i}} == 0">...</if>
 // <elif :="{{$i}} == 1">...</elif>
 // <elif :="{{$i}} == 2 && {{$j}} == 3">...</elif>
 // <else>...</else>
 
-export function ifBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
+export default async function (client: Client, root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   if (!element.ownerDocument) return
   let nodes: Element[] = [element]
 
@@ -53,7 +54,7 @@ export function ifBlock(root: Template, element: Element, data: TemplateData, mi
         frag.appendChild(child.cloneNode(true))
       }
     }
-    step(root, frag, data, mixins)
+    step(client, root, frag, data, mixins)
     element.replaceWith(frag)
     break
   }

@@ -43,13 +43,13 @@ export default class extends Storage {
    * @param {string} filePath The location of the file/directory
    * @returns {(Promise<string | Buffer>)}
    */
-  public load(filePath: string): Promise<string | Buffer> {
+  public load(filePath: string, encoding = 'utf-8'): Promise<string> {
     return new Promise(resolve => {
       let output = ''
       let resource = path.join(this.root, filePath)
-      fs.createReadStream(resource, { encoding: 'binary' })
+      fs.createReadStream(resource, { encoding })
         .on('data', (data) => output += data)
-        .on('end', () => resolve(output))
+        .on('end', () => resolve(output.toString()))
     })
   }
 
@@ -61,7 +61,7 @@ export default class extends Storage {
    */
   public delete(filePath: string): Promise<boolean> {
     return new Promise(resolve => {
-      fs.unlink(path.join(this.root, 'storage', filePath), (err) => {
+      fs.unlink(path.join(this.root, filePath), (err) => {
         resolve(!err)
       })
     })

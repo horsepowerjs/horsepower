@@ -1,13 +1,14 @@
-import { step, getVariableValues, getScopeData } from '.'
-import { Template } from './extend'
-import { Mixin } from './mixin';
+import { step, getVariableValues, getScopeData } from '../helpers'
+import { Template } from '../helpers/extend'
+import { Mixin } from '../helpers/mixin';
 import { TemplateData } from '..';
+import { Client } from '@red5/server';
 
 // <for :="i from 10 through 15">{{$i}}</for> <!-- 10,11,12,13,14,15 -->
 // <for :="i from 10 thru 15">{{$i}}</for>    <!-- 10,11,12,13,14,15 -->
 // <for :="i from 10 to 15">{{$i}}</for>      <!-- 10,11,12,13,14 -->
 
-export async function forBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
+export default async function (client: Client, root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let query = element.getAttribute(':')
   if (query && element.ownerDocument) {
     let matches = query.replace(/\s\s+/g, ' ')
@@ -25,7 +26,7 @@ export async function forBlock(root: Template, element: Element, data: TemplateD
         } else if (clone.textContent) {
           clone.textContent = clone.textContent.replace(new RegExp(`\\{\\{\\$${key}\\}\\}`, 'g'), i.toString())
         }
-        step(root, clone, data, mixins)
+        step(client, root, clone, data, mixins)
         frag.appendChild(clone)
       }
     }

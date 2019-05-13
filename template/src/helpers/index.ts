@@ -1,15 +1,20 @@
 import { readFile } from 'fs'
-import { Template } from './extend'
-import { block } from './block'
-import { ifBlock } from './if'
 import { JSDOM } from 'jsdom'
-import { includeBlock, requireBlock } from './include'
-import { debugBlock } from './debug'
-import { eachBlock } from './each'
-import { forBlock } from './for'
+
+// The template directives
+import { Template } from './extend'
+import block from '../directives/block'
+import ifBlock from '../directives/if'
+import debugBlock from '../directives/debug'
+import eachBlock from '../directives/each'
+import forBlock from '../directives/for'
+import langBlock from '../directives/lang'
+import csrfBlock from '../directives/csrf'
+import caseBlock from '../directives/case'
+import { includeBlock, requireBlock } from '../directives/include'
 import { includeMixin, Mixin } from './mixin'
-import { caseBlock } from './case'
 import { TemplateData, Nullable } from '..'
+import { Client } from '@red5/server';
 
 export * from './files'
 export * from './extend'
@@ -199,7 +204,7 @@ export function isHTMLElement(windowScope: Window | JSDOM, clone: any): clone is
  * @param {Mixin[]} mixins
  * @returns {Promise<void>}
  */
-export async function step(root: Template, node: Document | Element | Node | DocumentFragment, data: TemplateData, mixins: Mixin[]): Promise<any> {
+export async function step(client: Client, root: Template, node: Document | Element | Node | DocumentFragment, data: TemplateData, mixins: Mixin[]): Promise<any> {
   for (let child of node.childNodes) {
     if (child.nodeType == root.dom.window.Node.TEXT_NODE && child.textContent) {
       // child.textContent.match(/\{\{(.+)\}\}/) && console.log('step', JSON.stringify(data.scopes))
@@ -210,41 +215,47 @@ export async function step(root: Template, node: Document | Element | Node | Doc
       // Elements based on tag name
       switch (name) {
         case 'include':
-          await includeBlock(root, child, data, mixins)
-          return await step(root, node, data, mixins)
+          await includeBlock(client, root, child, data, mixins)
+          return await step(client, root, node, data, mixins)
         case 'require':
-          await requireBlock(root, child, data, mixins)
-          return await step(root, node, data, mixins)
+          await requireBlock(client, root, child, data, mixins)
+          return await step(client, root, node, data, mixins)
         case 'block':
-          await block(root, child, data, mixins)
-          return await step(root, node, data, mixins)
+          await block(client, root, child, data, mixins)
+          return await step(client, root, node, data, mixins)
         case 'include':
-          await includeMixin(root, child, data, mixins)
-          return await step(root, node, data, mixins)
+          await includeMixin(client, root, child, data, mixins)
+          return await step(client, root, node, data, mixins)
         case 'if':
-          await ifBlock(root, child, data, mixins)
-          return await step(root, node, data, mixins)
+          await ifBlock(client, root, child, data, mixins)
+          return await step(client, root, node, data, mixins)
         case 'case':
-          await caseBlock(root, child, data, mixins)
-          return await step(root, node, data, mixins)
+          await caseBlock(client, root, child, data, mixins)
+          return await step(client, root, node, data, mixins)
         case 'each':
-          await eachBlock(root, child, data, mixins)
-          return await step(root, node, data, mixins)
+          await eachBlock(client, root, child, data, mixins)
+          return await step(client, root, node, data, mixins)
         case 'for':
-          await forBlock(root, child, data, mixins)
-          return await step(root, node, data, mixins)
+          await forBlock(client, root, child, data, mixins)
+          return await step(client, root, node, data, mixins)
+        case 'lang':
+          await langBlock(client, root, child)
+          return await step(client, root, node, data, mixins)
+        case 'csrf':
+          await csrfBlock(client, root, child)
+          return await step(client, root, node, data, mixins)
         case 'debug':
           await debugBlock(child, data)
-          return await step(root, node, data, mixins)
+          return await step(client, root, node, data, mixins)
         // Remove node since it's not part of a valid block group
         // Blocks cannot start with an "elif" or "else"
         case 'elif':
         case 'else':
           await remove(child)
-          return await step(root, node, data, mixins)
+          return await step(client, root, node, data, mixins)
       }
       if (child.childNodes.length > 0) {
-        await step(root, child, data, mixins)
+        await step(client, root, child, data, mixins)
       }
     }
   }

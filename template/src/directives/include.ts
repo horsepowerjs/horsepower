@@ -1,9 +1,10 @@
 import * as path from 'path'
 import * as fs from 'fs'
-import { Template } from './extend';
-import { fragmentFromFile, step, replaceVariables } from '.';
-import { Mixin } from './mixin';
+import { Template } from '../helpers/extend';
+import { fragmentFromFile, step, replaceVariables } from '../helpers';
+import { Mixin } from '../helpers/mixin';
 import { TemplateData } from '..';
+import { Client } from '@red5/server';
 
 // <include file="../abc/123"/></include>
 // <require file="../abc/123"/></require>
@@ -18,19 +19,19 @@ import { TemplateData } from '..';
  * @param {TemplateData} data The template data
  * @param {Mixin[]} mixins
  */
-export async function includeBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
+export async function includeBlock(client: Client, root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let inclFileName = element.getAttribute('file')
   if (inclFileName && element.ownerDocument && inclFileName.length > 0) {
     inclFileName = replaceVariables(inclFileName, data)
     let dir = path.dirname(root.file)
-    let file = path.resolve(dir, inclFileName + (!inclFileName.endsWith('.rtpl') ? '.rtpl' : ''))
+    let file = path.resolve(dir, inclFileName + (!inclFileName.endsWith('.mix') ? '.mix' : ''))
     let isFile = await new Promise(r => fs.stat(file, (err, stats) => {
       if (err) return r(false)
       return r(stats.isFile())
     }))
     if (isFile) {
       let frag = await fragmentFromFile(file)
-      step(root, frag, data, mixins)
+      step(client, root, frag, data, mixins)
       frag && element.replaceWith(frag)
     } else {
       element.remove()
@@ -47,19 +48,19 @@ export async function includeBlock(root: Template, element: Element, data: Templ
  * @param {TemplateData} data The template data
  * @param {Mixin[]} mixins
  */
-export async function requireBlock(root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
+export async function requireBlock(client: Client, root: Template, element: Element, data: TemplateData, mixins: Mixin[]) {
   let inclFileName = element.getAttribute('file')
   if (inclFileName && element.ownerDocument && inclFileName.length > 0) {
     inclFileName = replaceVariables(inclFileName, data)
     let dir = path.dirname(root.file)
-    let file = path.resolve(dir, inclFileName + (!inclFileName.endsWith('.rtpl') ? '.rtpl' : ''))
+    let file = path.resolve(dir, inclFileName + (!inclFileName.endsWith('.mix') ? '.mix' : ''))
     let isFile = await new Promise(r => fs.stat(file, (err, stats) => {
       if (err) return r(false)
       return r(stats.isFile())
     }))
     if (isFile) {
       let frag = await fragmentFromFile(file)
-      step(root, frag, data, mixins)
+      step(client, root, frag, data, mixins)
       frag && element.replaceWith(frag)
     } else {
       throw new Error(`Could not find template "${file}"`)

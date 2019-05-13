@@ -12,14 +12,15 @@ export interface Template {
   child?: Template
 }
 
-export async function extend(tpl: Template) {
+export default async function extend(tpl: Template) {
   let document = tpl.document
   let item = document.querySelector(':scope > extends')
   if (!item) return tpl
   let inclFileName = item.getAttribute('file')
   if (inclFileName && item.parentElement) {
     let dir = path.dirname(tpl.file)
-    let file = path.resolve(dir, inclFileName + (!inclFileName.endsWith('.rtpl') ? '.rtpl' : ''))
+    // let file = path.resolve(dir, inclFileName + (!inclFileName.endsWith('.mix') ? '.mix' : ''))
+    let file = inclFileName + (!inclFileName.endsWith('.mix') ? '.mix' : '')
     let parent = await parseFile(file)
     // let rootTpl:Template
     if (parent) {

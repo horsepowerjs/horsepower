@@ -1,5 +1,5 @@
 import { Router } from '@red5/router'
-import { Storage, StorageSettings } from '@red5/storage'
+import { StorageSettings, StorageDisk } from '@red5/storage'
 import { MiddlewareManager } from '@red5/middleware'
 
 import * as http from 'http'
@@ -97,7 +97,6 @@ export class Server {
       // Setup dependencies
       route && Router.setControllersRoot(route.controllers)
       views && Template.setTemplatesRoot(views.path)
-      storage && Storage.setConfig(storage)
 
       let appConfig = getConfig<AppSettings>('app')
 
@@ -113,8 +112,8 @@ export class Server {
       console.log(`      default: "${(storage || { default: '' }).default}"`)
       console.log(`      cloud:   "${(storage || { cloud: '' }).cloud || ''}"`)
       console.log(`      session: "${appConfig && appConfig.session && appConfig.session.store || ''}"`)
-      if (appConfig && appConfig.session && appConfig.session.store) {
-        shell.mkdir('-p', storagePath('framework/session'))
+      if (storage && storage.disks && storage.disks.session) {
+        shell.mkdir('-p', (storage.disks.session as StorageDisk).root)
       }
       if (storage) {
         console.log(`    disks:`)
@@ -294,14 +293,14 @@ export class Server {
    */
   public static async getErrorPage(client: Client, code: number, data: { [key: string]: any } = {}): Promise<Response> {
     // Read the file
-    let filePath = path.join(__dirname, '../error-pages/', code + '.html')
+    let filePath = path.join(__dirname, '../error-pages/', `${(isProduction() ? code : 1000)}.html`)
     let fileUri = path.parse(filePath)
-    let file = await new Promise<string>(resolve => fs.readFile(filePath, (err, data) => resolve(data.toString())))
+    let content = await new Promise<string>(resolve => fs.readFile(filePath, (err, data) => resolve(data.toString())))
     // let file = fs.readFileSync(filePath).toString()
     // Replace static placeholders
-    file = file.replace(/\$\{(.+)\}/g, (a: string, b: string) => data[b] || '')
+    content = content.replace(/\$\{(.+)\}/g, (a: string, b: string) => data[b] || '')
     // Replace executable placeholders
-    file = file.replace(/\#\{(.+)\}/g, (a: string, b: string) => {
+    content = content.replace(/\#\{(.+)\}/g, (a: string, b: string) => {
       // Replace "#{include('/path/to/file')}" with the file's contents
       if (b.startsWith('include(')) {
         return b.replace(/'|"/g, '').replace(/\include\((.+)\);?/i, (a: string, b: string) => {
@@ -311,7 +310,7 @@ export class Server {
       }
       return ''
     })
-    return client.response.setCode(code).setBody(file)
+    return client.response.setCode(code).setBody(content)
   }
 
   private static async send(client: Client, req: http.IncomingMessage, res: http.ServerResponse) {
@@ -372,7 +371,7 @@ export class Server {
     // In this case we send the headers only and the body should not be sent
     if (['head', 'options'].includes(client.method)) {
       res.end()
-      client.session && await client.session.end()
+      client.session && await client.session.close()
       return
     }
 
@@ -393,10 +392,9 @@ export class Server {
         try {
           responseBody = await Template.render(client)
         } catch (e) {
-          await this.getErrorPage(client, 500)
-          console.log('caught you')
+          await this.getErrorPage(client, 500, { message: e.stack })
+          responseBody = client.response.body
         }
-        // res.write(await Template.render(client))
       } else if (client.response.buffer) {
         responseBody = client.response.buffer
       } else {
@@ -410,6 +408,6 @@ export class Server {
       res.end()
     }
 
-    client.session && await client.session.end()
+    client.session && await client.session.close()
   }
 }
