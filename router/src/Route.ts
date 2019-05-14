@@ -14,6 +14,7 @@ export class Route {
   public get routeName() { return this._name }
   public get path(): string {
     if (typeof this.pathAlias == 'string' && !this.pathAlias.split('/').find(i => i.startsWith(':'))) return this.pathAlias
+    // console.log(this._path)
     return (this._path.pathname || '/')
   }
 

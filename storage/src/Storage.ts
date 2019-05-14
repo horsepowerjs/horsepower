@@ -20,7 +20,10 @@ export abstract class Storage {
   public abstract delete(filePath: string): Promise<boolean>
   public abstract prepend(filePath: string, data: string | Buffer): Promise<boolean>
   public abstract exists(filePath: string): Promise<boolean>
+  public abstract isFile(filePath: string): Promise<boolean>
+  public abstract isDirectory(filePath: string): Promise<boolean>
   public abstract append(filePath: string, data: string | Buffer): Promise<boolean>
+  public abstract toPath(filePath: string): string
   public abstract copy(source: string, destination: string): Promise<boolean>
   public abstract move(source: string, destination: string): Promise<boolean>
 
@@ -52,6 +55,14 @@ export abstract class Storage {
     return this.mount().exists(path)
   }
 
+  public static isFile(path: string) {
+    return this.mount().isFile(path)
+  }
+
+  public static isDirectory(path: string) {
+    return this.mount().isDirectory(path)
+  }
+
   public static prepend(path: string, data: string | Buffer) {
     return this.mount().prepend(path, data)
   }
@@ -66,6 +77,10 @@ export abstract class Storage {
 
   public static move(source: string, destination: string) {
     return this.mount().move(source, destination)
+  }
+
+  public static path(path: string) {
+    return this.mount().toPath(path)
   }
 
   /**
@@ -95,9 +110,11 @@ export abstract class Storage {
     if (!this.config) throw new Error('No storage configuration file found at "config/storage.js"')
     if (!driver) driver = this.config.default
     let name = Object.keys(this.config.disks).find(disk => disk == driver)
-    let config: StorageDisk | null = null
+    let config: StorageDisk | StorageDisk[] | null = null
+
     if (typeof name == 'string') config = this.config.disks[name]
-    if (!config) throw new Error(`Cannot find config for "${driver}"`)
+    if (!config) throw new Error(`Cannot find storage driver "${driver}"`)
+
     try {
       // Try and load a builtin driver from the "drivers" directory
       let driver = require(path.join(__dirname, './drivers', config.driver))

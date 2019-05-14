@@ -3,11 +3,15 @@ import { join } from 'path'
 import * as os from 'os'
 import * as fs from 'fs'
 import * as querystring from 'querystring'
+import { serialize as serializeCookie, parse as parseCookie } from 'cookie'
 import { IncomingMessage, IncomingHttpHeaders } from 'http'
 
 import { RequestMethod, Route } from '@red5/router'
 import { Response } from '.'
 import { Session } from '@red5/session'
+import { getConfig } from './helper';
+import { AppSettings } from './Server';
+import { Storage } from '@red5/storage';
 
 export interface FileType {
   key: string
@@ -15,6 +19,7 @@ export interface FileType {
   tmpFilename: string
 }
 
+export type Lang = { [key: string]: any }
 export declare type Helpers = { [key: string]: Function }
 
 export class Client {
@@ -270,6 +275,45 @@ export class Client {
 
   public setRoute(route: Route) {
     this.route = route
+    return this
+  }
+
+  public setLocale(locale: string) {
+    let session = getConfig<any>('session')
+    let cookieOptions = session && session.cookie ? session.cookie : {
+      path: '/',
+      // Expire the cookie in approximately 30 days
+      expires: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000))
+    }
+    this.response.setCookie('lang', locale, cookieOptions)
+    return this
+  }
+
+  public getLocale() {
+    let cookies = parseCookie(<string>this.request.headers.cookie || '')
+    let lang = cookies.lang
+    if (!lang) {
+      let app = getConfig<AppSettings>('app')
+      if (app && app.locale) lang = app.locale
+    }
+    return lang || 'en'
+  }
+
+  async trans(key: string, data: { [key: string]: any } = {}) {
+    let store = Storage.mount('resources')
+    let [file, ...keyPath] = key.split('.')
+    let transValue = ''
+    if (await store.exists(join('lang', this.getLocale(), `${file}.json`))) {
+      let langData = JSON.parse((await store.load(join('lang', this.getLocale(), `${file}.json`)) || '{}').toString()) as Lang
+      transValue = keyPath.reduce<any>((obj, val) => obj && obj[val] && obj[val] || '', langData || {}).toString()
+    }
+
+    for (let i of Object.entries(data)) {
+      let key = i[0], val = i[1]
+      transValue = transValue.replace(new RegExp(`:${key}`, 'g'), val)
+    }
+
+    return transValue
   }
 
   // public setHelpers(helpers: { [key: string]: Function }) {

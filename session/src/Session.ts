@@ -22,12 +22,11 @@ export interface SessionRecord {
   creation: Date | undefined | null
   expires: Date | undefined | null
   csrf: string
-  lang: string
   cookie: CookieSerializeOptions & { expires?: Date | number | undefined }
 }
 
 export class Session {
-  private readonly _originalRecord: SessionRecord = { id: null, creation: null, expires: null, csrf: '', lang: 'en', cookie: { path: '/' }, items: [], flash: [] }
+  private readonly _originalRecord: SessionRecord = { id: null, creation: null, expires: null, csrf: '', cookie: { path: '/' }, items: [], flash: [] }
   private readonly _store: 'file' = 'file'
 
   private _started: boolean = false
@@ -37,7 +36,6 @@ export class Session {
   private get file() { return this._record.id + '.sess' }
   public get csrf() { return this._record.csrf || '' }
   public get id() { return this._record.id || '' }
-  public get lang() { return this._record.lang || this._originalRecord.lang }
   public get created() { return this._record.creation }
 
   public constructor(private client: Client) {
@@ -145,16 +143,6 @@ export class Session {
 
   public generateCSRF(length: number = 32) {
     this._record.csrf = crypto.randomBytes(length).toString('hex')
-  }
-
-  /**
-   * Sets the locale for the current user
-   *
-   * @param {string} locale The locale for the user
-   * @memberof Session
-   */
-  public setLocale(locale: string) {
-    this._record.lang = locale
   }
 
   /**
@@ -300,12 +288,12 @@ export class Session {
   }
 
   private _setCookieHeader() {
-    this.client.response.setHeader('Set-Cookie', serialize('sessid', this._record.id || '', this._record.cookie))
+    this.client.response.setCookie('sessid', this._record.id || '', this._record.cookie)
   }
 
   private _deleteCookieHeader() {
     let options: object = JSON.parse(JSON.stringify(this._record.cookie))
     options = Object.assign(options, { expires: new Date(0, 0, 0) })
-    this.client.response.setHeader('Set-Cookie', serialize('sessid', this._record.id || '', options))
+    this.client.response.setCookie('sessid', this._record.id || '', options)
   }
 }

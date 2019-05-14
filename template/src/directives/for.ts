@@ -48,7 +48,7 @@ export default async function (client: Client, root: Template, element: Element,
     } else {
       end = parseInt(matches[3])
     }
-    console.log(start, end)
+
     let frag = element.ownerDocument.createDocumentFragment()
     switch (type) {
       case 'through':

@@ -239,7 +239,7 @@ export async function step(client: Client, root: Template, node: Document | Elem
           await forBlock(client, root, child, data, mixins)
           return await step(client, root, node, data, mixins)
         case 'lang':
-          await langBlock(client, root, child)
+          await langBlock(client, root, child, data)
           return await step(client, root, node, data, mixins)
         case 'csrf':
           await csrfBlock(client, root, child)

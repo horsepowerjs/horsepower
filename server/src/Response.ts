@@ -1,5 +1,5 @@
 import { OutgoingHttpHeaders } from 'http'
-import { Router } from '@red5/router'
+import { Router, Route } from '@red5/router'
 import { stat, statSync } from 'fs';
 
 export interface CookieOptions {
@@ -253,14 +253,43 @@ export class Response {
       /**
        * Redirects to a named route
        *
-       * @param {string} name The name of the route
+       * @param {string} name
+       * @param {{
+       *         params: { [key: string]: any },
+       *         query: { [key: string]: any }
+       *       }} [options={}]
        * @returns
        */
-      to(name: string) {
+      to(name: string, options: {
+        params?: { [key: string]: any },
+        query?: { [key: string]: any }
+        body?: string
+      } = {}) {
         let route = Router.findByName(name)
+
+        // Get the redirect url
+        let location = route &&
+          typeof route.pathAlias == 'string' &&
+          route.pathAlias
+            .split('/')
+            // Replace the placeholders with the values from the "params" parameter
+            .map(i => i.startsWith(':') && i.replace(i, options.params && options.params[i.replace(/^:/, '')] || '') || i)
+            .join('/') || '/'
+
+        // Replace the query data
+        if (options.query) {
+          let entries = Object.keys(options.query)
+          location = entries.length > 0 ?
+            `?${entries.map(i => `${encodeURIComponent(i[0])}=${encodeURIComponent(i[1])}`).join('&')}` : ''
+        }
+
+        // Set the body
+        options.body && $this.setBody(options.body)
+
+        // Set the response information
         return $this
           .setCode(302)
-          .setHeader('Location', route ? route.path : '/')
+          .setHeader('Location', location)
       },
       /**
        * Redirects to a new URL this can be an internal or external location
@@ -268,7 +297,9 @@ export class Response {
        * @param {string} path The url or path to redirect to
        * @returns
        */
-      location(path: string) {
+      location(path: string, options: { body?: string } = {}) {
+        // Set the body
+        options.body && $this.setBody(options.body)
         return $this
           .setCode(302)
           .setHeader('Location', path)

@@ -1,5 +1,5 @@
 import { Router } from '@red5/router'
-import { StorageSettings, StorageDisk } from '@red5/storage'
+import { StorageSettings, StorageDisk, Storage } from '@red5/storage'
 import { MiddlewareManager } from '@red5/middleware'
 
 import * as http from 'http'
@@ -35,7 +35,8 @@ export interface AppSettings {
   }
   https?: https.ServerOptions | false
   chunkSize?: number
-  static?: string[],
+  static?: string[]
+  locale?: string
   logs?: {
     error?: {
       path?: string
@@ -83,7 +84,7 @@ export class Server {
       http.createServer(this.request.bind(this))
 
     // Listen on the provided port
-    this.instance.listen(this.app.port, () => {
+    this.instance.listen(this.app.port, async () => {
       if (!this.app) return
       // Output the config settings
       console.log(`Red5 is now listening on port "${this.app.port}" (Not yet accepting connections)`)
@@ -141,7 +142,10 @@ export class Server {
       if (route) {
         try {
           console.log(`--- Start Route Setup -----`)
-          require(route.routes)
+          // Load the users defined routes
+          await import(route.routes)
+          // Load the builtin routes
+          await import('./routes')
           // Get the longest route
           let longestRoute = Router.routes.reduce((num, val) => {
             let len = val.pathAlias instanceof RegExp ? `RegExp(${val.pathAlias.source})`.length : val.pathAlias.length
@@ -188,11 +192,10 @@ export class Server {
 
   private static async request(req: http.IncomingMessage, res: http.ServerResponse) {
     if (!this.app) return
-    let urlInfo = url.parse('http://' + req.headers.host + (req.url || '/'))
-    let client = new Client(req)
-
+    const urlInfo = url.parse('http://' + req.headers.host + (req.url || '/'))
+    const client = new Client(req)
     // Get the body of the request
-    let body = await new Promise<string>(resolve => {
+    const body = await new Promise<string>(resolve => {
       let reqBody = ''
       req.on('data', (data: Buffer) => {
         reqBody += data.toString('binary')
@@ -209,33 +212,18 @@ export class Server {
       await client.init()
       client.setBody(body)
 
-      // Attempt to send the file from the public folder
       if (urlInfo.pathname) {
-        let filePath = path.join(applicationPath('public'), urlInfo.pathname)
+        // Attempt to send the file from the public folder
         try {
-          let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
-          if (stats.isFile()) {
-            client.response.setFile(filePath).setContentLength(stats.size)
+          const pub = Storage.mount('public')
+          if (await pub.isFile(urlInfo.pathname)) {
+            client.response.setFile(pub.toPath(urlInfo.pathname))
             return await this.send(client, req, res)
           }
         } catch (e) { }
-
-        // If the file isn't found in the public folder attempt to find it in the defined static folder(s)
-        if (this.app.static && Array.isArray(this.app.static) && this.app.static.length > 0) {
-          for (let staticFolder in this.app.static) {
-            let filePath = path.join(staticFolder, urlInfo.pathname)
-            try {
-              let stats = await new Promise<fs.Stats>(resolve => fs.stat(filePath, (err, stat) => resolve(stat)))
-              if (stats.isFile()) {
-                client.response.setFile(filePath).setContentLength(stats.size)
-                return await this.send(client, req, res)
-              }
-            } catch (e) { }
-          }
-        }
       }
 
-      let routeInfo = await Router.route(urlInfo, client.method)
+      const routeInfo = await Router.route(urlInfo, client.method)
       let resp: Response | null = null
       if (routeInfo && routeInfo.route && routeInfo.callback) {
         client.setRoute(routeInfo.route)

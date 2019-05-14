@@ -132,12 +132,34 @@ export default class extends Storage {
    * @returns {Promise<boolean>}
    */
   public exists(filePath: string): Promise<boolean> {
-    return new Promise(async resolve => {
+    return new Promise<boolean>(async resolve => {
       fs.stat(path.join(this.root, filePath), (err, stat) => {
         if (err) resolve(false)
         else if (stat.isFile()) resolve(true)
         else resolve(stat.isDirectory())
       })
     })
+  }
+
+  public isFile(filePath: string): Promise<boolean> {
+    return new Promise<boolean>(resolve => {
+      fs.stat(path.join(this.root, filePath), (err, stat) => {
+        if (err) return resolve(false)
+        return resolve(stat.isFile())
+      })
+    })
+  }
+
+  public isDirectory(filePath: string): Promise<boolean> {
+    return new Promise<boolean>(resolve => {
+      fs.stat(path.join(this.root, filePath), (err, stat) => {
+        if (err) return resolve(false)
+        return resolve(stat.isDirectory())
+      })
+    })
+  }
+
+  public toPath(filePath: string) {
+    return path.join(this.root, filePath)
   }
 }
