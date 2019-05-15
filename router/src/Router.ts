@@ -71,7 +71,6 @@ export class Router {
         callback = theRoute.callback
       }
     } catch (e) { }
-
     // If a valid route was found run the callback, otherwise send a 404
     return { route: theRoute, callback: callback || null }
     // return callback ? await callback(client) : null

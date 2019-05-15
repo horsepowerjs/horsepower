@@ -1,7 +1,7 @@
 import { Storage } from '../Storage'
 import * as path from 'path'
 import * as fs from 'fs'
-import * as mkdir from 'mkdirp'
+import * as mkdirp from 'mkdirp'
 
 export default class extends Storage {
 
@@ -23,14 +23,14 @@ export default class extends Storage {
   }): Promise<boolean> {
     return new Promise(async resolve => {
       let dir = path.parse(filePath).dir
-      await new Promise(r => mkdir(path.join(this.root, dir), (err) => { err ? r(false) : r(true) }))
+      await new Promise(r => mkdirp(path.join(this.root, dir), (err) => { err ? r(false) : r(true) }))
       try {
         let resource = path.join(this.root, filePath)
-        let stream: fs.WriteStream = fs.createWriteStream(resource, Object.assign({ flags: 'w' }, options))
-          .on('error', () => resolve(false))
-          .on('finish', () => resolve(true))
-        stream.write(data)
-        stream.close()
+        let writeStream: fs.WriteStream = fs.createWriteStream(resource, Object.assign({ flags: 'w' }, options))
+        writeStream.on('error', () => resolve(false))
+        writeStream.on('close', () => resolve(true))
+        writeStream.write(data)
+        writeStream.destroy()
       } catch (e) {
         resolve(false)
       }
@@ -41,15 +41,16 @@ export default class extends Storage {
    * Loads a file from file storage
    *
    * @param {string} filePath The location of the file/directory
-   * @returns {(Promise<string | Buffer>)}
+   * @returns {(Promise<Buffer>)}
    */
-  public load(filePath: string, encoding = 'utf-8'): Promise<string> {
+  public load(filePath: string): Promise<Buffer> {
     return new Promise(resolve => {
-      let output = ''
+      let chunks: any[] = []
       let resource = path.join(this.root, filePath)
-      fs.createReadStream(resource, { encoding })
-        .on('data', (data) => output += data)
-        .on('end', () => resolve(output.toString()))
+      let readStream = fs.createReadStream(resource)
+      readStream.on('data', (data) => chunks.push(data))
+      readStream.on('end', () => readStream.destroy())
+      readStream.on('close', () => resolve(Buffer.concat(chunks)))
     })
   }
 
@@ -61,7 +62,7 @@ export default class extends Storage {
    */
   public delete(filePath: string): Promise<boolean> {
     return new Promise(resolve => {
-      fs.unlink(path.join(this.root, filePath), (err) => {
+      fs.unlink(path.join(this.root, filePath), err => {
         resolve(!err)
       })
     })
@@ -103,10 +104,15 @@ export default class extends Storage {
   public copy(source: string, destination: string): Promise<boolean> {
     return new Promise(async resolve => {
       let dir = path.parse(destination).dir
-      await new Promise(r => mkdir(path.join(this.root, dir), (err) => { err ? r(false) : r(true) }))
-      fs.createReadStream(path.join(this.root, source))
-        .pipe(fs.createWriteStream(path.join(this.root, destination)))
-        .on('finish', () => resolve(true))
+      await new Promise(r => mkdirp(path.join(this.root, dir), (err) => { err ? r(false) : r(true) }))
+      let readStream = fs.createReadStream(path.join(this.root, source))
+      let writeStream = fs.createWriteStream(path.join(this.root, destination))
+      readStream.pipe(writeStream)
+      readStream.on('finish', () => {
+        readStream.destroy()
+        writeStream.destroy()
+      })
+      readStream.on('close', () => resolve(true))
     })
   }
 

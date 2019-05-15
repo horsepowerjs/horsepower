@@ -1,5 +1,5 @@
 import { parse } from 'url'
-import { join } from 'path'
+import { join, parse as parsePath } from 'path'
 import * as os from 'os'
 import * as fs from 'fs'
 import * as querystring from 'querystring'
@@ -16,6 +16,7 @@ import { Storage } from '@red5/storage';
 export interface FileType {
   key: string
   filename: string
+  tmpFilePath: string
   tmpFilename: string
 }
 
@@ -101,13 +102,16 @@ export class Client {
             let [full, newlines, file] = Array.from(item.match(/^.+?(\r\n\r\n|\n\n)(.+)/s) || [])
 
             // Write the file to the temp directory
-            fs.createWriteStream(temp).write(file, 'binary')
+            let stream = fs.createWriteStream(temp)
+            stream.write(file, 'binary')
+            stream.destroy()
 
             // Add the file to the list of files
             this._files.push({
               key: result.name,
               filename: result.filename,
-              tmpFilename: temp
+              tmpFilename: parsePath(temp).base,
+              tmpFilePath: temp
             })
           } else {
             this._post[result.name] = item.split(/\r\n\r\n|\n\n/)[1]

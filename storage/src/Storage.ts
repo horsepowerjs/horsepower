@@ -15,28 +15,138 @@ export interface StorageSettings {
 }
 
 export abstract class Storage {
+
+  /**
+   * Saves a file to storage if the file exists overwrite it.
+   * If the folder path doesn't exist save will automatically create the path.
+   *
+   * @param {string} filePath The location of the file/directory
+   * @param {(string | Buffer)} data The data to save
+   * @returns {Promise<boolean>}
+   */
   public abstract save(filePath: string, data: string | Buffer): Promise<boolean>
-  public abstract load(filePath: string): Promise<string | Buffer>
+  /**
+   * Loads a file from file storage
+   *
+   * @param {string} filePath The location of the file/directory
+   * @returns {(Promise<Buffer>)}
+   */
+  public abstract load(filePath: string): Promise<Buffer>
+  /**
+   * Deletes a file from storage
+   *
+   * @param {string} filePath The location of the file/directory
+   * @returns {Promise<boolean>}
+   */
   public abstract delete(filePath: string): Promise<boolean>
+  /**
+   * Prepends data to the beginning of a file
+   *
+   * @param {string} filePath The location of the file
+   * @param {(string | Buffer)} data The data to prepend to the beginning of the file
+   * @returns {Promise<boolean>}
+   */
   public abstract prepend(filePath: string, data: string | Buffer): Promise<boolean>
-  public abstract exists(filePath: string): Promise<boolean>
-  public abstract isFile(filePath: string): Promise<boolean>
-  public abstract isDirectory(filePath: string): Promise<boolean>
+  /**
+   * Appends data to the end of a file
+   *
+   * @param {string} filePath The location of the file
+   * @param {(string | Buffer)} data The data to append to the end of the file
+   * @returns {Promise<boolean>}
+   */
   public abstract append(filePath: string, data: string | Buffer): Promise<boolean>
-  public abstract toPath(filePath: string): string
+  /**
+   * Copies a file or directory from one location to another location
+   *
+   * @param {string} source The original location of the file/directory
+   * @param {string} destination The new location of the file/directory
+   * @returns {Promise<boolean>}
+   */
   public abstract copy(source: string, destination: string): Promise<boolean>
+  /**
+   * Moves a file or directory from one location to another location
+   *
+   * @param {string} source The original location of the file/directory
+   * @param {string} destination The new location of the file/directory
+   * @returns {Promise<boolean>}
+   */
   public abstract move(source: string, destination: string): Promise<boolean>
+  /**
+   * Checks if a file or directory exists
+   *
+   * @param {string} filePath The location of the file/directory
+   * @returns {Promise<boolean>}
+   */
+  public abstract exists(filePath: string): Promise<boolean>
+  /**
+   * Checks if a path is a file
+   *
+   * @abstract
+   * @param {string} filePath The path to the file
+   * @returns {Promise<boolean>}
+   * @memberof Storage
+   */
+  public abstract isFile(filePath: string): Promise<boolean>
+  /**
+   * Checks if a path is a directory
+   *
+   * @abstract
+   * @param {string} filePath The path to the directory
+   * @returns {Promise<boolean>}
+   * @memberof Storage
+   */
+  public abstract isDirectory(filePath: string): Promise<boolean>
+  /**
+   * Gets the full path to a file or directory
+   *
+   * @abstract
+   * @param {string} filePath The path to the file or directory
+   * @returns {string}
+   * @memberof Storage
+   */
+  public abstract toPath(filePath: string): string
 
   protected disk: StorageDisk
   protected get root(): string {
     return this.disk.root
   }
 
+  public name: string = ''
+
   private static config: StorageSettings | null = null
 
 
   public constructor(config: StorageDisk) {
     this.disk = Object.freeze(config)
+  }
+
+  /**
+   * Copies a file from one storage driver to another
+   *
+   * @param {Storage | string} source The source storage driver
+   * @param {string} sourceFile The path of the file on the source driver
+   * @param {string} destinationFile The path to the destination on the current driver
+   * @returns
+   */
+  public async copyFrom(source: Storage | string, sourceFile: string, destinationFile: string) {
+    let storageSource = typeof source == 'string' ? Storage.mount(source) : source
+    let file = await storageSource.load(sourceFile)
+    return await this.save(destinationFile, file)
+  }
+
+  /**
+   * Moves a file from one storage driver to another
+   *
+   * @param {Storage | string} source The source storage driver
+   * @param {string} sourceFile The path of the file on the source driver
+   * @param {string} destinationFile The path to the destination on the current driver
+   * @returns
+   */
+  public async moveFrom(source: Storage | string, sourceFile: string, destinationFile: string) {
+    let storageSource = typeof source == 'string' ? Storage.mount(source) : source
+    let file = await storageSource.load(sourceFile)
+    await this.save(destinationFile, file)
+    return await storageSource.delete(sourceFile)
   }
 
   public static save(path: string, data: string | Buffer) {
@@ -79,6 +189,14 @@ export abstract class Storage {
     return this.mount().move(source, destination)
   }
 
+  public static copyFrom(source: Storage | string, sourceFile: string, destinationFile: string) {
+    return this.mount().copyFrom(source, sourceFile, destinationFile)
+  }
+
+  public static moveFrom(source: Storage | string, sourceFile: string, destinationFile: string) {
+    return this.mount().moveFrom(source, sourceFile, destinationFile)
+  }
+
   public static path(path: string) {
     return this.mount().toPath(path)
   }
@@ -103,18 +221,44 @@ export abstract class Storage {
    * @memberof Storage
    */
   public static mount(disk: string): Storage
-  public static mount(driver?: string): Storage {
+  /**
+   * Mounts a disk not defined within the config
+   *
+   * @static
+   * @param {{ root: string }} disk
+   * @returns {Storage}
+   * @memberof Storage
+   */
+  public static mount(disk: StorageDisk): Storage
+  public static mount(driver?: string | StorageDisk): Storage {
+    if (typeof driver == 'string') {
+      if (driver == 'tmp') {
+        return this.getDriver({
+          driver: 'file',
+          root: require('os').tmpdir()
+        })
+      }
+      this.config = getConfig<StorageSettings>('storage') || null
 
-    this.config = getConfig<StorageSettings>('storage') || null
+      if (!this.config) throw new Error('No storage configuration file found at "config/storage.js"')
+      if (!driver) driver = this.config.default
+      let name = Object.keys(this.config.disks).find(disk => disk == driver)
+      let config: StorageDisk | null = null
 
-    if (!this.config) throw new Error('No storage configuration file found at "config/storage.js"')
-    if (!driver) driver = this.config.default
-    let name = Object.keys(this.config.disks).find(disk => disk == driver)
-    let config: StorageDisk | StorageDisk[] | null = null
+      if (!name) throw new Error(`No storage found for "${name}"`)
+      config = this.config.disks[name]
+      if (!config) throw new Error(`Cannot find storage driver "${driver}"`)
 
-    if (typeof name == 'string') config = this.config.disks[name]
-    if (!config) throw new Error(`Cannot find storage driver "${driver}"`)
+      let storageDriver = this.getDriver(config)
+      storageDriver.name = name
+      return storageDriver
+    } else if (driver) {
+      return this.getDriver(driver)
+    }
+    throw new Error(`Cannot find and mount the driver`)
+  }
 
+  private static getDriver(config: StorageDisk): Storage {
     try {
       // Try and load a builtin driver from the "drivers" directory
       let driver = require(path.join(__dirname, './drivers', config.driver))
