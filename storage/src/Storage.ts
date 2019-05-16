@@ -15,23 +15,24 @@ export interface StorageSettings {
 }
 
 export abstract class Storage {
-
   /**
    * Saves a file to storage if the file exists overwrite it.
    * If the folder path doesn't exist save will automatically create the path.
    *
    * @param {string} filePath The location of the file/directory
    * @param {(string | Buffer)} data The data to save
+   * @param {object} [options] The save options for when saving the file
    * @returns {Promise<boolean>}
    */
-  public abstract save(filePath: string, data: string | Buffer): Promise<boolean>
+  public abstract save(filePath: string, data: string | Buffer, options?: object): Promise<boolean>
   /**
    * Loads a file from file storage
    *
    * @param {string} filePath The location of the file/directory
+   * @param {object} [options] The save options for when saving the file
    * @returns {(Promise<Buffer>)}
    */
-  public abstract load(filePath: string): Promise<Buffer>
+  public abstract load(filePath: string, options?: object): Promise<Buffer>
   /**
    * Deletes a file from storage
    *
@@ -124,29 +125,46 @@ export abstract class Storage {
    * Copies a file from one storage driver to another
    *
    * @param {Storage | string} source The source storage driver
-   * @param {string} sourceFile The path of the file on the source driver
-   * @param {string} destinationFile The path to the destination on the current driver
+   * @param {string} sourceObject The path of the file on the source driver
+   * @param {string} destinationObject The path to the destination on the current driver
    * @returns
    */
-  public async copyFrom(source: Storage | string, sourceFile: string, destinationFile: string) {
+  public async copyFrom(source: Storage | string, sourceObject: string, destinationObject: string) {
     let storageSource = typeof source == 'string' ? Storage.mount(source) : source
-    let file = await storageSource.load(sourceFile)
-    return await this.save(destinationFile, file)
+    if (await storageSource.exists(sourceObject)) {
+      let storageSource = typeof source == 'string' ? Storage.mount(source) : source
+      let file = await storageSource.load(sourceObject)
+      return await this.save(destinationObject, file)
+    }
   }
 
   /**
    * Moves a file from one storage driver to another
    *
    * @param {Storage | string} source The source storage driver
-   * @param {string} sourceFile The path of the file on the source driver
-   * @param {string} destinationFile The path to the destination on the current driver
+   * @param {string} sourceObject The path of the file on the source driver
+   * @param {string} destinationObject The path to the destination on the current driver
    * @returns
    */
-  public async moveFrom(source: Storage | string, sourceFile: string, destinationFile: string) {
+  public async moveFrom(source: Storage | string, sourceObject: string, destinationObject: string) {
     let storageSource = typeof source == 'string' ? Storage.mount(source) : source
-    let file = await storageSource.load(sourceFile)
-    await this.save(destinationFile, file)
-    return await storageSource.delete(sourceFile)
+    if (await storageSource.exists(sourceObject)) {
+      let file = await storageSource.load(sourceObject)
+      await this.save(destinationObject, file)
+      return await storageSource.delete(sourceObject)
+    }
+  }
+
+  /**
+   * This forces the root directory to be the root of the driver.
+   * No paths will be able to access other items outside of the drivers root.
+   *
+   * @param {string} root The root of the driver
+   * @param {string} objectPath The path to the object
+   * @returns {string} The forced path
+   */
+  protected forceRoot(objectPath: string): string {
+    return path.posix.join(this.root, path.posix.resolve('/', objectPath))
   }
 
   public static save(path: string, data: string | Buffer) {
@@ -209,7 +227,7 @@ export abstract class Storage {
    * @returns {T}
    * @memberof Storage
    */
-  public static mount(): Storage
+  public static mount<T extends Storage>(): T
 
   /**
    * Mounts a particular disk
@@ -220,7 +238,7 @@ export abstract class Storage {
    * @returns {T}
    * @memberof Storage
    */
-  public static mount(disk: string): Storage
+  public static mount<T extends Storage>(disk: string): T
   /**
    * Mounts a disk not defined within the config
    *
@@ -229,14 +247,14 @@ export abstract class Storage {
    * @returns {Storage}
    * @memberof Storage
    */
-  public static mount(disk: StorageDisk): Storage
-  public static mount(driver?: string | StorageDisk): Storage {
+  public static mount<T extends Storage>(disk: StorageDisk): T
+  public static mount<T extends Storage>(driver?: string | StorageDisk): T {
     if (typeof driver == 'string') {
       if (driver == 'tmp') {
         return this.getDriver({
           driver: 'file',
           root: require('os').tmpdir()
-        })
+        }) as T
       }
       this.config = getConfig<StorageSettings>('storage') || null
 
@@ -251,9 +269,9 @@ export abstract class Storage {
 
       let storageDriver = this.getDriver(config)
       storageDriver.name = name
-      return storageDriver
+      return storageDriver as T
     } else if (driver) {
-      return this.getDriver(driver)
+      return this.getDriver(driver) as T
     }
     throw new Error(`Cannot find and mount the driver`)
   }

@@ -199,7 +199,9 @@ export class DB {
       if (!DB._configuration) throw new Error(`Could not find the database configuration at "${configPath('db.js')}"`)
 
       // Find the requested configuration within the configurations
-      let [alias, db] = Object.entries(DB._configuration).find(e => {
+      let entries = Object.entries(DB._configuration)
+      if (entries.filter(i => i[1].driver == 'mysql' && i[1].default).length > 1) throw new Error(`Too many default connections for the MySQL driver`)
+      let [alias, db] = entries.find(e => {
         let key = e[0], value = e[1], n = (name || '').trim().length
         if (n > 0 && key == name) return true
         if (n == 0 && value.default === true && value.driver.toLowerCase() == 'mysql') return true

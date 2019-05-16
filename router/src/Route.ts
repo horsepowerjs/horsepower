@@ -24,7 +24,7 @@ export class Route {
     public readonly callback: string | Function | null//((client: Client) => void | Response)
   ) {
     if (typeof this.pathAlias == 'string') {
-      this.pathAlias = this.unixJoin(this.pathAlias).replace(/\/$/g, '')
+      this.pathAlias = path.posix.join(this.pathAlias)
       if (!this.pathAlias.startsWith('/')) this.pathAlias = '/' + this.pathAlias
     }
     // console.log(`   ${(<string>method.toUpperCase())} ${this.pathAlias instanceof RegExp ? `RegExp(${this.pathAlias.source})` : this.pathAlias}${typeof callback == 'string' ? ` -> ${callback}` : ''}`)
@@ -93,9 +93,5 @@ export class Route {
 
   public setPath(path: UrlWithStringQuery) {
     this._path = path
-  }
-
-  private unixJoin(...segments: string[]) {
-    return path.join(...segments).replace(/\\/g, '/')
   }
 }

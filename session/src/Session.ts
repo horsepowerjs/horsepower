@@ -1,7 +1,8 @@
-import { CookieSerializeOptions, parse, serialize } from 'cookie'
+import { CookieSerializeOptions, parse } from 'cookie'
 import { Client, getConfig, AppSettings } from '@red5/server'
-import { Storage } from '@red5/storage'
+import { Storage, StorageSettings } from '@red5/storage'
 import * as crypto from 'crypto'
+import * as path from 'path'
 
 export interface SessionItem {
   key: string
@@ -33,16 +34,18 @@ export class Session {
   private _record: SessionRecord = this._originalRecord
   private store: Storage
 
-  private get file() { return this._record.id + '.sess' }
+  private get file() { return path.join('red5', 'sessions', this._record.id + '.sess') }
   public get csrf() { return this._record.csrf || '' }
   public get id() { return this._record.id || '' }
   public get created() { return this._record.creation }
+  public get items() { return Object.assign({}, this._record.items, this._record.flash) }
 
   public constructor(private client: Client) {
     this.client.session = <any>this
     let app = getConfig('app') as AppSettings
+    let store = getConfig<StorageSettings>('storage')
     this._store = app.session && app.session.store ? app.session.store : 'file'
-    this.store = Storage.mount('session')
+    this.store = store && store.disks && store.disks.session ? Storage.mount('session') : Storage.mount('tmp')
   }
 
   /**

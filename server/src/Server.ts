@@ -113,9 +113,6 @@ export class Server {
       console.log(`      default: "${(storage || { default: '' }).default}"`)
       console.log(`      cloud:   "${(storage || { cloud: '' }).cloud || ''}"`)
       console.log(`      session: "${appConfig && appConfig.session && appConfig.session.store || ''}"`)
-      if (storage && storage.disks && storage.disks.session) {
-        shell.mkdir('-p', (storage.disks.session as StorageDisk).root)
-      }
       if (storage) {
         console.log(`    disks:`)
         for (let i in storage.disks) console.log(`      ${i}: "${storage.disks[i].root || ''}"`)

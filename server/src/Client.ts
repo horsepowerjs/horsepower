@@ -1,23 +1,52 @@
 import { parse } from 'url'
-import { join, parse as parsePath } from 'path'
-import * as os from 'os'
-import * as fs from 'fs'
+import * as path from 'path'
 import * as querystring from 'querystring'
-import { serialize as serializeCookie, parse as parseCookie } from 'cookie'
+import { parse as parseCookie } from 'cookie'
 import { IncomingMessage, IncomingHttpHeaders } from 'http'
 
 import { RequestMethod, Route } from '@red5/router'
 import { Response } from '.'
 import { Session } from '@red5/session'
-import { getConfig } from './helper';
-import { AppSettings } from './Server';
-import { Storage } from '@red5/storage';
+import { getConfig } from './helper'
+import { AppSettings } from './Server'
+import { Storage, FileStorage } from '@red5/storage'
 
 export interface FileType {
+  /**
+   * The name of the form field
+   *
+   * @type {string}
+   * @memberof FileType
+   */
   key: string
+  /**
+   * The original name of the uploaded file `example.jpg`
+   *
+   * @type {string}
+   * @memberof FileType
+   */
   filename: string
+  /**
+   * The full location of the tmp file `/tmp/dir/red5/uploads/xxxyyyzzz.tmp`
+   *
+   * @type {string}
+   * @memberof FileType
+   */
   tmpFilePath: string
+  /**
+   * The name of the tmp file `xxxyyyzzz.tmp`
+   *
+   * @type {string}
+   * @memberof FileType
+   */
   tmpFilename: string
+  /**
+   * The location of the tmp file relative to the storage disk's root `/red5/uploads/xxxyyyzzz.tmp`
+   *
+   * @type {string}
+   * @memberof FileType
+   */
+  tmpStoragePath: string
 }
 
 export type Lang = { [key: string]: any }
@@ -76,12 +105,14 @@ export class Client {
    * @param {string} body The received body string from the request
    * @memberof Client
    */
-  public setBody(body: string) {
+  public async setBody(body: string) {
     let contentType = this.headers.get<string>('content-type')
     if (contentType.includes('boundary=')) {
       // Get the boundary for each item
-      let [type, boundary] = contentType.split('boundary=')
-      body.split(new RegExp(`(--${boundary}|--${boundary}--)`)).forEach(item => {
+      let [/* contentType */, boundary] = contentType.split('boundary=')
+      // Get an array of items within each boundary
+      let boundaries = body.split(new RegExp(`(--${boundary}|--${boundary}--)`))
+      for (let item of boundaries) {
         if (item.trim().toLowerCase().startsWith('content-disposition')) {
           item = item.trim()
 
@@ -95,29 +126,30 @@ export class Client {
               return obj
             }, { name: '', filename: '' })
 
+          // If a filename was found, this item must be from a file upload
           if (result.filename.length > 0) {
             // Creates a temporary filename to store the upload
-            // This will use the operating systems temp directory to store the file
-            let temp = join(os.tmpdir(), 'red5-' + (Math.random() * 10000).toString(12).substr(5, 10) + '.tmp')
-            let [full, newlines, file] = Array.from(item.match(/^.+?(\r\n\r\n|\n\n)(.+)/s) || [])
+            let temp = path.posix.join('red5', 'uploads', (Math.random() * 10000).toString(12).substr(5, 10) + '.tmp')
+            let [/* fullMatch */, /* newlines */, file] = Array.from(item.match(/^.+?(\r\n\r\n|\n\n)(.+)/s) || [])
+            if (file) {
+              // Write the file to the temp directory
+              await Storage.mount<FileStorage>('tmp').save(temp, file, { encoding: 'binary' })
 
-            // Write the file to the temp directory
-            let stream = fs.createWriteStream(temp)
-            stream.write(file, 'binary')
-            stream.destroy()
-
-            // Add the file to the list of files
-            this._files.push({
-              key: result.name,
-              filename: result.filename,
-              tmpFilename: parsePath(temp).base,
-              tmpFilePath: temp
-            })
+              // Add the file to the list of files
+              this._files.push({
+                key: result.name,
+                filename: result.filename,
+                tmpFilename: path.posix.parse(temp).base,
+                tmpFilePath: Storage.mount<FileStorage>('tmp').toPath(temp),
+                tmpStoragePath: temp
+              })
+            }
           } else {
+            // No filename was found, this is just post data
             this._post[result.name] = item.split(/\r\n\r\n|\n\n/)[1]
           }
         }
-      })
+      }
     } else {
       try {
         this._post = JSON.parse(body)
@@ -152,6 +184,18 @@ export class Client {
     let $this = this
     return {
       /**
+       * Gets all of the items in the query string
+       */
+      get getAll(): object {
+        return Object.freeze($this._get)
+      },
+      /**
+       * Gets all of the items in the post data
+       */
+      get postAll(): object {
+        return Object.freeze($this._post)
+      },
+      /**
        * Gets the file information from a request
        *
        * @param {string} key The key that was used to reference the file
@@ -161,7 +205,7 @@ export class Client {
         return ($this._files.find(i => i.key == key))
       },
       /**
-       * Gets a query parameter
+       * Gets a query parameter and if it is not found return the default value
        *
        * @template T
        * @param {string} key The key to the query parameter
@@ -307,8 +351,8 @@ export class Client {
     let store = Storage.mount('resources')
     let [file, ...keyPath] = key.split('.')
     let transValue = ''
-    if (await store.exists(join('lang', this.getLocale(), `${file}.json`))) {
-      let langData = JSON.parse((await store.load(join('lang', this.getLocale(), `${file}.json`)) || '{}').toString()) as Lang
+    if (await store.exists(path.posix.join('lang', this.getLocale(), `${file}.json`))) {
+      let langData = JSON.parse((await store.load(path.posix.join('lang', this.getLocale(), `${file}.json`)) || '{}').toString()) as Lang
       transValue = keyPath.reduce<any>((obj, val) => obj && obj[val] && obj[val] || '', langData || {}).toString()
     }
 

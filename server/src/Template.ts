@@ -29,7 +29,12 @@ export class Template {
     let html = ''
     if (typeof client.response.templatePath == 'string') {
       let filePath = client.response.templatePath
-      let options = Object.assign({}, client.response.templateData, helpers)
+      let options = Object.assign({}, client.response.templateData, helpers, {
+        session: client.session && client.session.items,
+        get: client.data.getAll,
+        post: client.data.postAll,
+        params: client.route.params
+      })
       let file = path.join(this._root, filePath)
       // Render red5 files
       if (filePath.endsWith('.mix')) {
