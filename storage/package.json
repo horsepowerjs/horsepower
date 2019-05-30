@@ -1,6 +1,6 @@
 {
     "name": "@red5/storage",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Storage manager for the red5 http server.",
     "main": "lib/index.js",
     "scripts": {
