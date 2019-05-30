@@ -5,6 +5,8 @@ import { Middleware } from '@red5/middleware'
 
 export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'any'
 
+type ReservedDomainNames = 'default'
+
 // declare interface Client { }
 
 // declare interface Middleware {
@@ -23,22 +25,35 @@ declare type RouteInfo = Promise<{
   callback: Function | undefined
 } | null>
 
+export interface Domain {
+  domain: string | RegExp
+  routes: Route[]
+}
+
 export class Router {
 
-  private static readonly _routes: Route[] = []
+  // private static readonly _routes: Route[] = []
   private static readonly groupPath: string[] = []
   private static readonly groupOptions: RouterOptions[] = []
+  private static currentDomain: string | RegExp = 'default'
+  private static readonly _domains: Domain[] = []
   private static controllerRoot: string = path.join((
     path.dirname(require.main && require.main.filename || __filename)
   ), 'controllers')
 
-  public static get routes() { return this._routes }
+  public static routes(domainName: string = 'default') {
+    let domain = this.findDomain(domainName)
+    if (domain) return domain.routes
+    return []
+  }
+
+  public static get domains() { return this._domains }
 
   public static setControllersRoot(root: string) {
     this.controllerRoot = root
   }
 
-  public static async route(route: UrlWithStringQuery, method: RequestMethod /* , client: Client */): RouteInfo {
+  public static async route(route: UrlWithStringQuery, method: RequestMethod): RouteInfo {
     // Try to find the route
     let theRoute = this._find(route, method || 'get')
 
@@ -104,6 +119,23 @@ export class Router {
     callback()
     this.groupPath.pop()
     this.groupOptions.pop()
+  }
+
+  /**
+   * Assigns the routes to a specific domain
+   * **Note:** this method should not be nested within other items
+   *
+   * @static
+   * @param {Exclude<string, 'default'>} domain The domain to assign the routes to
+   * @param {Function} callback The callback to add the routes to
+   * @memberof Router
+   */
+  public static domain(domain: string | RegExp, callback: Function): void {
+    if (typeof domain == 'string') domain = domain.toLowerCase()
+    if (domain == 'default') throw new Error('Domain "default" is a reserved word.')
+    this.currentDomain = domain
+    callback()
+    this.currentDomain = 'default'
   }
 
   /**
@@ -524,62 +556,100 @@ export class Router {
     args.length == 3 && r.setRouteOptions(args[1])
 
     // Add the route to the list of routes
-    this._routes.push(r)
+    // this._routes.push(r)
+    let domain = this._domains.find(i => i.domain == this.currentDomain)
+    if (!domain) {
+      this._domains.push({ domain: this.currentDomain, routes: [r] })
+    } else {
+      domain.routes.push(r)
+    }
     return r
   }
 
-  public static findByName(name: string) {
-    return this._routes.find(r => r.routeName == name)
+  public static findDomain(domainName: string) {
+    return this._domains.find(d => {
+      if (typeof d.domain == 'string' && d.domain == domainName) return true
+      if (d.domain instanceof RegExp && d.domain.test(domainName)) return true
+      return false
+    })
   }
 
-  public static findByAlias(method: RequestMethod, path: string) {
-    return this._routes.find(r => r.method == method && String(r.pathAlias) == path)
+  public static findByName(name: string, domainName: string = 'default') {
+    let domain = this.findDomain(domainName)
+    if (domain) {
+      return domain.routes.find(r => r.routeName == name)
+    }
+    // return this._routes.find(r => r.routeName == name)
   }
 
-  public static findByPath(method: RequestMethod, path: string) {
-    return this._routes.find(r => r.method == method && r.path == path)
+  public static findByAlias(method: RequestMethod, path: string, domainName: string = 'default') {
+    let domain = this.findDomain(domainName)
+    if (domain) {
+      return domain.routes.find(r => r.method == method && String(r.pathAlias) == path)
+    }
+    // return this._routes.find(r => r.method == method && String(r.pathAlias) == path)
+  }
+
+  public static findByPath(method: RequestMethod, path: string, domainName: string = 'default') {
+    let domain = this.findDomain(domainName)
+    if (domain) {
+      return domain.routes.find(r => r.method == method && r.path == path)
+    }
+    // return this._routes.find(r => r.method == method && r.path == path)
   }
 
   private static _find(route: UrlWithStringQuery, method: RequestMethod) {
     if (!route.pathname) return undefined
-    // Find routes based on exact match
-    let theRoute = this._routes.find(r => {
-      if (typeof r.pathAlias == 'string')
-        return r.pathAlias == route.pathname && method.toLowerCase() == r.method.toLowerCase()
-      else if (r.pathAlias instanceof RegExp)
-        return r.pathAlias.test(route.pathname || '')
-      return false
-    })
-    // If no exact match was found
-    if (!theRoute) {
-      let routeCrumbs = route.pathname.split('/').filter(i => i.trim().length > 0)
-      let routeDynParams = routeCrumbs.filter(i => i.startsWith(':'))
-      let routeLen = routeCrumbs.length
-      let routeDynParamsLen = routeDynParams.length
+    let domain = this.findDomain(route.hostname || 'default')
+    if (!domain) domain = this.findDomain('default')
+    if (domain) {
+      let theRoute = domain.routes.find(r => {
+        if (typeof r.pathAlias == 'string')
+          return r.pathAlias == route.pathname && method.toLowerCase() == r.method.toLowerCase()
+        else if (r.pathAlias instanceof RegExp)
+          return r.pathAlias.test(route.pathname || '')
+        return false
+      })
+      // // Find routes based on exact match
+      // let theRoute = this._routes.find(r => {
+      //   if (typeof r.pathAlias == 'string')
+      //     return r.pathAlias == route.pathname && method.toLowerCase() == r.method.toLowerCase()
+      //   else if (r.pathAlias instanceof RegExp)
+      //     return r.pathAlias.test(route.pathname || '')
+      //   return false
+      // })
+      // If no exact match was found
+      if (!theRoute) {
+        let routeCrumbs = route.pathname.split('/').filter(i => i.trim().length > 0)
+        let routeDynParams = routeCrumbs.filter(i => i.startsWith(':'))
+        let routeLen = routeCrumbs.length
+        let routeDynParamsLen = routeDynParams.length
 
-      for (let r of this._routes) {
-        if (r.pathAlias instanceof RegExp) break
-        let crumbs = r.pathAlias.split('/').filter(i => i.trim().length > 0)
-        let dynParams = crumbs.filter(i => i.startsWith(':'))
-        // make sure the path lengths are the same and parameters exist
-        if (dynParams.length == 0 || (routeLen != crumbs.length && routeDynParamsLen != dynParams.length)) continue
-        // Make sure the methods are the same (get, post, etc.)
-        if (r.method.toLowerCase() != method.toLowerCase()) continue
-        // Make sure non-parameters are in the correct location
-        if (!crumbs.every((crumb, idx) => routeCrumbs[idx] == crumb || crumb.startsWith(':'))) continue
-        // Create a new instance of the route
-        theRoute = Object.assign(Object.create(r), r) as Route
-        // Set the current path of the route
-        theRoute instanceof Route && theRoute.setPath(route)
-        break
+        for (let r of domain.routes) {
+          // for (let r of this._routes) {
+          if (r.pathAlias instanceof RegExp) break
+          let crumbs = r.pathAlias.split('/').filter(i => i.trim().length > 0)
+          let dynParams = crumbs.filter(i => i.startsWith(':'))
+          // make sure the path lengths are the same and parameters exist
+          if (dynParams.length == 0 || (routeLen != crumbs.length && routeDynParamsLen != dynParams.length)) continue
+          // Make sure the methods are the same (get, post, etc.)
+          if (r.method.toLowerCase() != method.toLowerCase()) continue
+          // Make sure non-parameters are in the correct location
+          if (!crumbs.every((crumb, idx) => routeCrumbs[idx] == crumb || crumb.startsWith(':'))) continue
+          // Create a new instance of the route
+          theRoute = Object.assign(Object.create(r), r) as Route
+          // Set the current path of the route
+          theRoute instanceof Route && theRoute.setPath(route)
+          break
+        }
       }
-    }
 
-    if (theRoute) {
-      theRoute = <Route>Object.create(theRoute)
-      theRoute.setPath(route)
+      if (theRoute) {
+        theRoute = <Route>Object.create(theRoute)
+        theRoute.setPath(route)
+      }
+      return theRoute
     }
-    return theRoute
   }
 
   private static _constrain(expression: RegExp, value: string) {

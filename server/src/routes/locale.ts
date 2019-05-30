@@ -5,7 +5,7 @@ import { AppSettings } from '../Server'
 
 // If the user defined their own route for "/lang/:locale",
 // then don't attempt to add this one
-if (!Router.routes.some(r => r.pathAlias == '/lang/:locale')) {
+if (!Router.routes().some(r => r.pathAlias == '/lang/:locale')) {
   Router.get('/lang/:locale', (client: Client) => {
     const appConfig = getConfig<AppSettings>('app')
     const defaultLocale = appConfig && appConfig.locale || 'en'

@@ -1,4 +1,4 @@
-import { Router } from '@red5/router'
+import { Router, Route } from '@red5/router'
 import { StorageSettings, StorageDisk, Storage } from '@red5/storage'
 import { MiddlewareManager } from '@red5/middleware'
 
@@ -144,27 +144,33 @@ export class Server {
           // Load the builtin routes
           await import('./routes')
           // Get the longest route
-          let longestRoute = Router.routes.reduce((num, val) => {
+          let longestRoute = Math.max(...Router.domains.map(d => d.routes.reduce((num, val) => {
             let len = val.pathAlias instanceof RegExp ? `RegExp(${val.pathAlias.source})`.length : val.pathAlias.length
             return len > num ? len : num
-          }, 'Route'.length)
+          }, 'Route'.length)))
+
           // Get the longest controller
-          let longestController = Router.routes.reduce((num, val) => {
+          let longestController = Math.max(...Router.domains.map(d => d.routes.reduce((num, val) => {
             let len = typeof val.callback == 'string' ? val.callback.length : 'Closure'.length
             return len > num ? len : num
-          }, 'Controller'.length)
+          }, 'Controller'.length)))
+
           // Get the longest name
-          let longestName = Router.routes.reduce((num, val) => {
+          let longestName = Math.max(...Router.domains.map(d => d.routes.reduce((num, val) => {
             let len = val.routeName.length || 0
             return len > num ? len : num
-          }, 'Name'.length)
+          }, 'Name'.length)))
+
           console.log(`    ${'Method'.padEnd(10)}${'Route'.padEnd(longestRoute + 3)}${'Controller'.padEnd(longestController + 3)}${'Name'}`)
           console.log(`${''.padEnd(longestController + longestRoute + longestName + 20, '-')}`)
-          Router.routes.forEach(route => {
-            let method = route.method.toUpperCase()
-            let routeAlias = route.pathAlias instanceof RegExp ? `RegExp(${route.pathAlias.source})` : route.pathAlias
-            let routeCtrl = typeof route.callback == 'string' ? `${route.callback}` : 'Closure'
-            console.log(`    ${method.padEnd(10)}${routeAlias.padEnd(longestRoute + 3)}${routeCtrl.padEnd(longestController + 3)}${route.routeName}`)
+          Router.domains.forEach(domain => {
+            console.log(domain.domain)
+            domain.routes.forEach(route => {
+              let method = route.method.toUpperCase()
+              let routeAlias = route.pathAlias instanceof RegExp ? `RegExp(${route.pathAlias.source})` : route.pathAlias
+              let routeCtrl = typeof route.callback == 'string' ? `${route.callback}` : 'Closure'
+              console.log(`    ${method.padEnd(10)}${routeAlias.padEnd(longestRoute + 3)}${routeCtrl.padEnd(longestController + 3)}${route.routeName}`)
+            })
           })
           console.log(`--- End Routes Setup -----`)
         } catch (e) {
