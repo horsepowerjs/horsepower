@@ -12,7 +12,7 @@ export declare type FileOptions = {
   start?: number;
 }
 
-export interface FileStorage extends Storage {
+export interface FileStorage extends Storage<any> {
   /**
    * Saves a file to storage if the file exists overwrite it.
    * If the folder path doesn't exist save will automatically create the path.
@@ -106,7 +106,7 @@ export interface FileStorage extends Storage {
   toPath(filePath: string): string
 }
 
-export default class extends Storage {
+export default class extends Storage<{}> {
 
   /**
    * Saves a file to storage if the file exists overwrite it.

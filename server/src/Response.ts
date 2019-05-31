@@ -1,6 +1,7 @@
 import { OutgoingHttpHeaders } from 'http'
 import { Router, Route } from '@red5/router'
-import { stat, statSync } from 'fs';
+import { parse } from 'url'
+import { Client } from './Client';
 
 export interface CookieOptions {
   path?: string
@@ -26,7 +27,7 @@ export class Response {
   private _buffer: Buffer | null = null
   private _cookies: (Cookie & CookieOptions)[] = []
 
-  public constructor(private _body: string = '', private _headers: OutgoingHttpHeaders = {
+  public constructor(private _client: Client, private _body: string = '', private _headers: OutgoingHttpHeaders = {
     'Content-Type': 'text/html; charset=utf-8'
   }, private _code: number = 200, private _length: number = 0) { }
 
@@ -229,14 +230,27 @@ export class Response {
    * along with that, `content-disposition` will also be set.
    *
    * @param {string} name The name the file should be saved as
+   * @param {Buffer} data The data to send to the client
+   * @param {number} [code=200] The status code to send with the download
+   * @returns
+   * @memberof Response
+   */
+  public download(name: string, data: Buffer, code?: number): this
+  /**
+   * Sends a file to the client to download. The content-type will automatically be set by analyzing the file extension;
+   * along with that, `content-disposition` will also be set.
+   *
+   * @param {string} name The name the file should be saved as
    * @param {string} path The location to the file on the server
    * @param {number} [code=200] The status code to send with the download
    * @returns
    * @memberof Response
    */
-  public download(name: string, path: string, code: number = 200) {
+  public download(name: string, path: string, code?: number): this
+  public download(name: string, path: string | Buffer, code: number = 200): this {
+    if (typeof path == 'string') this.setFile(path)
+    if (path instanceof Buffer) this.setBuffer(path)
     return this
-      .setFile(path)
       .setCode(code)
       .setHeader('Content-Disposition', `attachment; filename="${name}"`)
   }
@@ -263,9 +277,15 @@ export class Response {
       to(name: string, options: {
         params?: { [key: string]: any },
         query?: { [key: string]: any }
-        body?: string
+        body?: string,
+        headers?: OutgoingHttpHeaders
       } = {}) {
-        let route = Router.findByName(name)
+        let route = Router.findByName(name, null)
+
+        // The route was not found send the users to the main page
+        if (!route) return $this
+          .setCode(302)
+          .setHeader('Location', '/')
 
         // Get the redirect url
         let location = route &&
@@ -283,8 +303,18 @@ export class Response {
             `?${entries.map(i => `${encodeURIComponent(i[0])}=${encodeURIComponent(i[1])}`).join('&')}` : ''
         }
 
-        // Set the body
+        // If the domain on the route is a string, prefix the location with the domain
+        // This will allow for redirects between domains
+
+        // If the domain on the route is a regexp, only allow redirects on the same domain
+        // In this case, do not prefix anything onto the location
+        if (typeof route.domain == 'string') {
+          location = 'http://' + route.domain + location
+        }
+
+        // Set the body and headers if the are set in the options
         options.body && $this.setBody(options.body)
+        options.headers && $this.setHeaders(options.headers)
 
         // Set the response information
         return $this
@@ -297,9 +327,10 @@ export class Response {
        * @param {string} path The url or path to redirect to
        * @returns
        */
-      location(path: string, options: { body?: string } = {}) {
+      location(path: string, options: { body?: string, headers?: OutgoingHttpHeaders } = {}) {
         // Set the body
         options.body && $this.setBody(options.body)
+        options.headers && $this.setHeaders(options.headers)
         return $this
           .setCode(302)
           .setHeader('Location', path)

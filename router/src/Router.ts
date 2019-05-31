@@ -2,10 +2,9 @@ import { UrlWithStringQuery } from 'url'
 import * as path from 'path'
 import { Route } from './Route'
 import { Middleware } from '@red5/middleware'
+import { Client } from '@red5/server'
 
 export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'any'
-
-type ReservedDomainNames = 'default'
 
 // declare interface Client { }
 
@@ -18,7 +17,9 @@ export interface RouterOptions {
   middleware?: ({ new(): Middleware } | Middleware | string)[]
 }
 
-export type RouteCallback = string | Function | Promise<Function | string | void>
+export type RouteFunction = (client: Client) => void
+
+export type RouteCallback = string | RouteFunction | Promise<RouteFunction | string | void>
 
 declare type RouteInfo = Promise<{
   route: Route | undefined
@@ -545,12 +546,12 @@ export class Router {
     // Create the new route
     let r: Route
     if (routePath instanceof RegExp) {
-      r = new Route(routePath, method, callback)
+      r = new Route(routePath, method, callback, this.currentDomain)
     } else {
       let pathAlias = path.join(...this.groupPath, routePath).replace(/\\/g, '/')
       let isAlreadyRoute = !!Router.findByAlias(method, pathAlias)
       if (isAlreadyRoute) throw new Error(`Path already exists: "${String(pathAlias)}"`)
-      r = new Route(pathAlias, method, callback)
+      r = new Route(pathAlias, method, callback, this.currentDomain)
     }
     r.setGroupOptions(Object.assign([], this.groupOptions))
     args.length == 3 && r.setRouteOptions(args[1])
@@ -566,36 +567,70 @@ export class Router {
     return r
   }
 
-  public static findDomain(domainName: string) {
+  public static findDomain(domainName: string | RegExp) {
     return this._domains.find(d => {
-      if (typeof d.domain == 'string' && d.domain == domainName) return true
-      if (d.domain instanceof RegExp && d.domain.test(domainName)) return true
+      if (typeof domainName == 'string') {
+        if (typeof d.domain == 'string' && d.domain == domainName) return true
+        if (d.domain instanceof RegExp && d.domain.test(domainName)) return true
+      } else if (domainName instanceof RegExp) {
+        if (d.domain instanceof RegExp && domainName.source == d.domain.source && domainName.flags == d.domain.flags) return true
+      }
       return false
     })
   }
 
-  public static findByName(name: string, domainName: string = 'default') {
-    let domain = this.findDomain(domainName)
-    if (domain) {
-      return domain.routes.find(r => r.routeName == name)
+  /**
+   * Finds a path by it's given name
+   *
+   * @static
+   * @param {string} name The name of the path
+   * @param {(string | RegExp | null)} [domainName='default'] The domain in which to look for the route. A null value searches all domains
+   * @returns
+   * @memberof Router
+   */
+  public static findByName(name: string, domainName: string | RegExp | null = 'default') {
+    // If a null domain is specified, search all domains
+    if (!domainName) {
+      for (let domain of this._domains) {
+        let route = domain.routes.find(r => r.routeName == name)
+        if (route) return route
+      }
+    } else {
+      let domain = this.findDomain(domainName)
+      if (domain) {
+        return domain.routes.find(r => r.routeName == name)
+      }
     }
-    // return this._routes.find(r => r.routeName == name)
   }
 
-  public static findByAlias(method: RequestMethod, path: string, domainName: string = 'default') {
-    let domain = this.findDomain(domainName)
-    if (domain) {
-      return domain.routes.find(r => r.method == method && String(r.pathAlias) == path)
+  public static findByAlias(method: RequestMethod, path: string, domainName: string | RegExp | null = 'default') {
+    // If a null domain is specified, search all domains
+    if (!domainName) {
+      for (let domain of this._domains) {
+        let route = domain.routes.find(r => r.method == method && String(r.pathAlias) == path)
+        if (route) return route
+      }
+    } else {
+      let domain = this.findDomain(domainName)
+      if (domain) {
+        return domain.routes.find(r => r.method == method && String(r.pathAlias) == path)
+      }
     }
-    // return this._routes.find(r => r.method == method && String(r.pathAlias) == path)
   }
 
-  public static findByPath(method: RequestMethod, path: string, domainName: string = 'default') {
-    let domain = this.findDomain(domainName)
-    if (domain) {
-      return domain.routes.find(r => r.method == method && r.path == path)
+  public static findByPath(method: RequestMethod, path: string, domainName: string | RegExp | null = 'default') {
+    // If a null domain is specified, search all domains
+    if (!domainName) {
+      for (let domain of this._domains) {
+        let route = domain.routes.find(r => r.method == method && r.path == path)
+        if (route) return route
+      }
+    } else {
+      let domain = this.findDomain(domainName)
+      if (domain) {
+        return domain.routes.find(r => r.method == method && r.path == path)
+      }
     }
-    // return this._routes.find(r => r.method == method && r.path == path)
   }
 
   private static _find(route: UrlWithStringQuery, method: RequestMethod) {

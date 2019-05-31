@@ -8,6 +8,8 @@ This file will attempt the following:
   - Link all the modules to their dependencies
 '
 
+# npm link @red5/server @red5/router @red5/middleware @red5/session @red5/storage @red5/template @red5/mysql
+
 CYAN='\033[0;36m'
 NC='\033[0m'
 
@@ -72,6 +74,7 @@ wait
 
 cd ../router
 npm link @red5/middleware &
+npm link @red5/server &
 wait
 
 cd ../mysql

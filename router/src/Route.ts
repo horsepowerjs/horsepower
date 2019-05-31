@@ -21,7 +21,8 @@ export class Route {
   public constructor(
     public readonly pathAlias: string | RegExp,
     public readonly method: RequestMethod,
-    public readonly callback: string | Function | null//((client: Client) => void | Response)
+    public readonly callback: string | Function | null,
+    public readonly domain: string | RegExp
   ) {
     if (typeof this.pathAlias == 'string') {
       this.pathAlias = path.posix.join(this.pathAlias)
@@ -56,7 +57,7 @@ export class Route {
   }
 
   public name(name: string) {
-    if (Router.findByName(name)) throw new Error('Route name "' + name + '" already exists')
+    if (Router.findByName(name, null)) throw new Error(`Route name "${name}" already exists`)
     this._name = name
     return this
   }

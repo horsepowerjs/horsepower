@@ -75,7 +75,7 @@ export class Client {
     this._req = req
     this._get = querystring.parse(parse(req.url || '').query || '')
     this.ajax = req.headers['x-requested-with'] == 'XMLHttpRequest'
-    this._response = new Response()
+    this._response = new Response(this)
     this._headers = req.headers
     this._id = (Math.random() * 10e15).toString(36).replace(/\W/g, '')
     this._post = {}
