@@ -1,6 +1,7 @@
-import { Router, Route } from '@red5/router'
-import { StorageSettings, StorageDisk, Storage } from '@red5/storage'
+import { StorageSettings, Storage } from '@red5/storage'
+import { Client, Response, log } from '@red5/server'
 import { MiddlewareManager } from '@red5/middleware'
+import { Router } from '@red5/router'
 
 import * as http from 'http'
 import * as https from 'https'
@@ -8,12 +9,10 @@ import * as fs from 'fs'
 import * as mime from 'mime-types'
 import * as path from 'path'
 import * as url from 'url'
-import * as shell from 'shelljs'
 import { serialize, CookieSerializeOptions } from 'cookie'
 
 import { Template } from './Template'
-import { Client, Response, log } from '.'
-import { getConfig, storagePath, configPath, applicationPath, isProduction } from './helper'
+import { getConfig, configPath, applicationPath, isProduction } from './helper'
 
 export interface RouterSettings {
   controllers: string
@@ -67,6 +66,8 @@ export class Server {
   private static instance: http.Server | https.Server
   public static app?: AppSettings
 
+  private static _clients: Client[] = []
+
   public static start() {
     // Load the application env file if it exists
     let envPath = applicationPath('.env')
@@ -115,7 +116,12 @@ export class Server {
       console.log(`      session: "${appConfig && appConfig.session && appConfig.session.store || ''}"`)
       if (storage) {
         console.log(`    disks:`)
-        for (let i in storage.disks) console.log(`      ${i}: "${storage.disks[i].root || ''}"`)
+        for (let disk in storage.disks) {
+          console.log(`      ${disk}: "${storage.disks[disk].root || ''}"`)
+          // Initialize the disk
+          // Some disks need to be started up such as a mongodb file system
+          await (<any>Storage.mount(disk)).boot(storage.disks[disk])
+        }
       }
       else { console.log(`      none`) }
       if (db) {
@@ -197,6 +203,7 @@ export class Server {
     if (!this.app) return
     const urlInfo = url.parse('http://' + req.headers.host + (req.url || '/'))
     const client = new Client(req)
+    this._clients.push(client)
     // Get the body of the request
     const body = await new Promise<string>(resolve => {
       let reqBody = ''
@@ -245,6 +252,10 @@ export class Server {
       await this.send(client, req, res)
       log.error(e, client)
     }
+
+    // Remove the client from the list of clients
+    let idx = this._clients.indexOf(client)
+    idx > -1 && this._clients.splice(idx, 1)
   }
 
   private static async _runMiddleware(routeInfo, client: Client, req: http.IncomingMessage, res: http.ServerResponse, type: 'post' | 'pre') {

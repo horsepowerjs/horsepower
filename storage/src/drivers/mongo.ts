@@ -1,9 +1,9 @@
 import { Storage, StorageDisk } from '../Storage'
 import { Readable } from 'stream'
-// import { MongoClient, GridFSBucket } from 'mongodb'
 
-declare type MongoClient = import('mongodb').MongoClient
+declare type MongoClient = typeof import('mongodb').MongoClient | import('mongodb').MongoClient
 declare type GridFSBucket = import('mongodb').GridFSBucket
+declare type Collection = import('mongodb').Collection
 declare type Db = import('mongodb').Db
 
 const mongo = require.main && require.main.require('mongodb')
@@ -28,39 +28,54 @@ interface File {
   md5: string
 }
 
-export default class MongoDriver extends Storage<MongoOptions> {
+interface MongoConnection {
+  name: string
+  client: MongoClient
+  bucket: GridFSBucket
+}
 
-  protected static client: MongoClient | null = null
-  protected bucket!: GridFSBucket
+export default class MongoStorage extends Storage<MongoOptions> {
 
-  private async _connect() {
-    if (MongoDriver.client) return
-    if (!this.disk.options || !this.disk.options.db) throw new Error(`No database set for "options.db"`)
-    let username = this.disk.options && this.disk.options.username || ''
-    let password = this.disk.options && this.disk.options.password || ''
+  protected static connections: MongoConnection[] = []
+
+  /**
+   * Initializes the connection to the database
+   *
+   * @internal
+   * @param {StorageDisk<MongoOptions>} config
+   * @memberof MongoDriver
+   */
+  public async boot(config: StorageDisk<MongoOptions>) {
+    if (!config.options || !config.options.db) throw new Error(`A database is required for a mongo driver; set "options.db" in the driver settings.`)
+    let options = config.options
+    let username = options && options.username || ''
+    let password = options && options.password || ''
 
     let user = ''
     if (username) user += username
     if (username && password) user += ':' + password
     if (user.length > 0) user += '@'
 
-    let host = this.disk.options && this.disk.options.host || 'localhost'
-    let port = this.disk.options && this.disk.options.port || 27017
+    let host = options && options.host || 'localhost'
+    let port = options && options.port || 27017
     let url = `mongodb://${user}${host}:${port}`
-    MongoDriver.client = await MongoClient.connect(url, { useNewUrlParser: true })
-    if (MongoDriver.client) this.bucket = new GridFSBucket(MongoDriver.client.db(this.disk.options.db))
+
+    let client = await MongoClient.connect(url, { useNewUrlParser: true })
+    let bucket = new GridFSBucket(client.db(options.db))
+
+    MongoStorage.connections.push({ client, name: this.name, bucket })
   }
 
   public async save(filePath: string, data: string | Buffer): Promise<boolean> {
-    await this._connect()
-    if (!MongoDriver.client) return false
-    let bucket: GridFSBucket = new GridFSBucket(MongoDriver.client.db(this.disk.options.db))
-    return new Promise<boolean>(resolve => {
+    return new Promise<boolean>(async resolve => {
+      let conn = this.getConnection(this.name)
+      if (!conn) return false
+      await this.delete(filePath)
       let r = new Readable()
       r._read = () => { }
       r.push(data)
       r.push(null)
-      r.pipe(bucket.openUploadStream(filePath, {
+      r.pipe(conn.bucket.openUploadStream(this.forceRoot(filePath), {
         // metadata: {
         //   mime: mimeType,
         //   type: mimeType.split('/')[0] || 'unknown',
@@ -75,12 +90,12 @@ export default class MongoDriver extends Storage<MongoOptions> {
   public async load(filePath: string, options?: object | undefined): Promise<Buffer> {
     return new Promise(async resolve => {
       try {
-        await this._connect()
-        if (!MongoDriver.client) resolve(Buffer.concat([]))
-        let file = await this.findFile(filePath)
+        let conn = this.getConnection(this.name)
+        if (!conn) return resolve(Buffer.concat([]))
+        let file = await this.findFile(conn, filePath)
         if (file) {
           let chunks: any[] = []
-          this.bucket.openDownloadStream(file._id)
+          conn.bucket.openDownloadStream(file._id)
             .on('data', chunk => chunks.push(chunk))
             .on('error', () => Buffer.concat([]))
             .on('close', () => resolve(Buffer.concat(chunks)))
@@ -94,53 +109,127 @@ export default class MongoDriver extends Storage<MongoOptions> {
   }
 
   public async delete(filePath: string): Promise<boolean> {
-    await this._connect()
-    if (!MongoDriver.client) return false
-    let bucket: GridFSBucket = new GridFSBucket(MongoDriver.client.db(this.disk.options.db))
-    let file = await this.findFile(filePath)
+    let conn = this.getConnection(this.name)
+    if (!conn) return false
+    let file = await this.findFile(conn, filePath)
     if (file) {
-      await bucket.delete(file._id)
+      await conn.bucket.delete(file._id)
       return true
     }
     return false
   }
 
   public async prepend(filePath: string, data: string | Buffer): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    let conn = this.getConnection(this.name)
+    if (!conn) return false
+    let file = await this.load(filePath)
+    if (file.length > 0 && await this.delete(filePath)) {
+      return await this.save(filePath, data + file.toString())
+    }
+    return false
   }
 
   public async append(filePath: string, data: string | Buffer): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    let conn = this.getConnection(this.name)
+    if (!conn) return false
+    let file = await this.load(filePath)
+    if (file.length > 0 && await this.delete(filePath)) {
+      return await this.save(filePath, file.toString() + data)
+    }
+    return false
   }
 
   public async copy(source: string, destination: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    let conn = this.getConnection(this.name)
+    if (!conn) return false
+    let file = await this.findFile(conn, source)
+    if (file) {
+      conn.bucket.openDownloadStream(file._id)
+        .pipe(conn.bucket.openUploadStream(this.forceRoot(destination)))
+      return true
+    }
+    return false
   }
 
   public async move(source: string, destination: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    let conn = this.getConnection(this.name)
+    if (!conn) return false
+    let file = await this.findFile(conn, source)
+    if (file) conn.bucket.rename(file._id, this.forceRoot(destination))
+    return !!file
   }
 
   public async exists(filePath: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    let conn = this.getConnection(this.name)
+    if (!conn) return false
+    return !!(await this.findFile(conn, filePath))
   }
 
   public async isFile(filePath: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    let conn = this.getConnection(this.name)
+    if (!conn) return false
+    return !!(await this.findFile(conn, filePath))
   }
 
   public async isDirectory(filePath: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    let conn = this.getConnection(this.name)
+    if (!conn) return false
+    const esc = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    filePath = this.forceRoot(filePath)
+    filePath = esc(filePath.endsWith('/') ? filePath : filePath + '/')
+    let collection: Collection = (<any>conn.client).db(this.disk.options.db).collection('fs.files')
+    let results = await collection.aggregate([
+      {
+        '$project': {
+          'path': { '$split': ['$filename', '/'] }
+        }
+      }, {
+        '$project': {
+          'path': { '$slice': ['$path', { '$subtract': [{ '$size': '$path' }, 1] }] }
+        }
+      }, {
+        '$project': {
+          'path': { '$slice': ['$path', 1, { '$size': '$path' }] }
+        }
+      }, {
+        '$project': {
+          'path': {
+            '$reduce': {
+              'input': '$path',
+              'initialValue': '/',
+              'in': { '$concat': ['$$value', '$$this', '/'] }
+            }
+          }
+        }
+      },
+      {
+        '$match': { 'path': RegExp(`^${filePath}`) }
+      },
+      {
+        '$group': {
+          '_id': null,
+          'total': { $sum: 1 }
+        }
+      }
+    ])
+    try {
+      return (await results.next()).total > 0
+    } catch (e) {
+      return false
+    }
   }
 
   public toPath(filePath: string): string {
-    throw new Error('Method not implemented.');
+    return this.forceRoot(filePath)
   }
 
-  private async findFile(filename: string) {
-    if (!MongoDriver.client) return null
-    let collection = MongoDriver.client.db(this.disk.options.db).collection('fs.files')
+  private async findFile(conn: MongoConnection, filename: string) {
+    let collection: Collection = (<any>conn.client).db(this.disk.options.db).collection('fs.files')
     if (!collection) return null
-    return await collection.findOne<File>({ filename })
+    return await collection.findOne<File>({ filename: this.forceRoot(filename) })
+  }
+
+  private getConnection(name: string) {
+    return MongoStorage.connections.find(c => c.name == name)
   }
 }

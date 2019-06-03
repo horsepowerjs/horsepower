@@ -15,6 +15,7 @@ export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete'
 
 export interface RouterOptions {
   middleware?: ({ new(): Middleware } | Middleware | string)[]
+  name?: string
 }
 
 export type RouteFunction = (client: Client) => void

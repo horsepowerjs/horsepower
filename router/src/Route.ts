@@ -48,8 +48,17 @@ export class Route {
     return Object.freeze(returnParams)
   }
 
+  /**
+   * Sets the options for the route
+   *
+   * @param {RouterOptions} options
+   * @memberof Route
+   */
   public setRouteOptions(options: RouterOptions) {
     this.routeOptions = options
+    if (options.name && options.name.length > 0) {
+      this.name(options.name)
+    }
   }
 
   public setGroupOptions(options: RouterOptions[]) {

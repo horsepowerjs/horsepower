@@ -2,16 +2,16 @@ import * as path from 'path'
 import { getConfig, log } from '@red5/server'
 
 
-export interface StorageDisk {
+export interface StorageDisk<T extends { [key: string]: any }> {
   driver: string
   root: string
-  options?: { [key: string]: any }
+  options: T//{ [key: string]: any }
 }
 
 export interface StorageSettings {
   default: string
   cloud?: string
-  disks: { [key: string]: StorageDisk }
+  disks: { [key: string]: StorageDisk<any> }
 }
 
 export abstract class Storage<OptionsType extends object> {
@@ -107,7 +107,10 @@ export abstract class Storage<OptionsType extends object> {
    */
   public abstract toPath(filePath: string): string
 
-  protected disk: StorageDisk & { options: OptionsType }
+  /** @internal */
+  public boot(config: StorageDisk<object>): void { }
+
+  protected disk: StorageDisk<any> & { options: OptionsType }
   protected get root(): string {
     return this.disk.root
   }
@@ -116,7 +119,7 @@ export abstract class Storage<OptionsType extends object> {
 
   private static config: StorageSettings | null = null
 
-  public constructor(config: StorageDisk) {
+  public constructor(config: StorageDisk<any>) {
     this.disk = Object.freeze(config) as any
   }
 
@@ -145,7 +148,7 @@ export abstract class Storage<OptionsType extends object> {
    * @param {string} destinationObject The path to the destination on the current driver
    * @returns
    */
-  public async moveFrom(source: Storage<any> | string, sourceObject: string, destinationObject: string) {
+  public async moveFrom(source: Storage<object> | string, sourceObject: string, destinationObject: string) {
     let storageSource = typeof source == 'string' ? Storage.mount(source) : source
     if (await storageSource.exists(sourceObject)) {
       let file = await storageSource.load(sourceObject)
@@ -206,11 +209,11 @@ export abstract class Storage<OptionsType extends object> {
     return this.mount().move(source, destination)
   }
 
-  public static copyFrom(source: Storage<any> | string, sourceFile: string, destinationFile: string) {
+  public static copyFrom(source: Storage<object> | string, sourceFile: string, destinationFile: string) {
     return this.mount().copyFrom(source, sourceFile, destinationFile)
   }
 
-  public static moveFrom(source: Storage<any> | string, sourceFile: string, destinationFile: string) {
+  public static moveFrom(source: Storage<object> | string, sourceFile: string, destinationFile: string) {
     return this.mount().moveFrom(source, sourceFile, destinationFile)
   }
 
@@ -226,7 +229,7 @@ export abstract class Storage<OptionsType extends object> {
    * @returns {T}
    * @memberof Storage
    */
-  public static mount<T extends Storage<any>>(): T
+  public static mount<T extends Storage<object>>(): T
 
   /**
    * Mounts a particular disk
@@ -237,7 +240,7 @@ export abstract class Storage<OptionsType extends object> {
    * @returns {T}
    * @memberof Storage
    */
-  public static mount<T extends Storage<any>>(disk: string): T
+  public static mount<T extends Storage<object>>(disk: string): T
   /**
    * Mounts a disk not defined within the config
    *
@@ -246,11 +249,11 @@ export abstract class Storage<OptionsType extends object> {
    * @returns {Storage}
    * @memberof Storage
    */
-  public static mount<T extends Storage<any>>(disk: StorageDisk): T
-  public static mount<T extends Storage<any>>(driver?: string | StorageDisk): T {
+  public static mount<T extends Storage<object>>(disk: StorageDisk<any>): T
+  public static mount<T extends Storage<object>>(driver?: string | StorageDisk<any>): T {
     if (typeof driver == 'string') {
       if (driver == 'tmp') {
-        return this.getDriver({
+        return this.getDriver(<any>{
           driver: 'file',
           root: require('os').tmpdir()
         }) as T
@@ -260,7 +263,7 @@ export abstract class Storage<OptionsType extends object> {
       if (!this.config) throw new Error('No storage configuration file found at "config/storage.js"')
       if (!driver) driver = this.config.default
       let name = Object.keys(this.config.disks).find(disk => disk == driver)
-      let config: StorageDisk | null = null
+      let config: StorageDisk<any> | null = null
 
       if (!name) throw new Error(`No storage found for "${name}"`)
       config = this.config.disks[name]
@@ -275,18 +278,18 @@ export abstract class Storage<OptionsType extends object> {
     throw new Error(`Cannot find and mount the driver`)
   }
 
-  private static getDriver(config: StorageDisk): Storage<any> {
+  private static getDriver(config: StorageDisk<any>): Storage<object> {
     try {
       // Try and load a builtin driver from the "drivers" directory
       let driver = require(path.join(__dirname, './drivers', config.driver))
-      return new driver.default(config) as Storage<any>
+      return new driver.default(config) as Storage<object>
     } catch (e) {
       console.log(e)
       try {
         // Try and load the driver from the root "node_modules" in the users project
         if (require.main && require.main.require) {
           let driver = require.main.require(config.driver)
-          return new driver.default(config) as Storage<any>
+          return new driver.default(config) as Storage<object>
         }
         throw e //new Error(`Cannot find the driver "${config.driver}"`)
       } catch (e) {

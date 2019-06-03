@@ -70,14 +70,15 @@ wait
 cd ../middleware
 npm link @red5/server &
 npm link @red5/router &
+npm link @red5/session &
+wait
+
+cd ../mysql
+npm link @red5/server &
 wait
 
 cd ../router
 npm link @red5/middleware &
-npm link @red5/server &
-wait
-
-cd ../mysql
 npm link @red5/server &
 wait
 

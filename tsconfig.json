@@ -8,7 +8,8 @@
     "removeComments": false,
     "inlineSourceMap": true,
     "skipLibCheck": true,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "stripInternal": true
   },
   "exclude": [
     "node_modules",
