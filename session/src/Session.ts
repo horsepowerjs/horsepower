@@ -74,7 +74,7 @@ export class Session {
     if (this._store == 'file') {
       if (await this.store.exists(this.file)) {
         // A session with this id already exists, lets load it
-        this._record = JSON.parse((await this.store.load(this.file)).toString())
+        this._record = JSON.parse((await this.store.read(this.file)).toString())
         this._record.cookie.expires = expires
         this._record.expires = expires
       } else {
@@ -136,7 +136,7 @@ export class Session {
       if (isFile) {
         // Rename the current session file to the new session file
         await this.store.move(oldFile, newFile)
-        await this.store.save(newFile, JSON.stringify(this._record))
+        await this.store.write(newFile, JSON.stringify(this._record))
       }
     }
 
@@ -279,7 +279,7 @@ export class Session {
 
   private async _save() {
     if (this._record.id && this._store == 'file') {
-      return await this.store.save(this.file, JSON.stringify(this._record))
+      return await this.store.write(this.file, JSON.stringify(this._record))
     }
     return false
   }

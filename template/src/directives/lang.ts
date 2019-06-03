@@ -13,7 +13,7 @@ export default async function (client: Client, root: Template, element: Element,
     // let store = Storage.mount('resources')
     // let [file] = (element.getAttribute('key') || '').split('.')
     // if (await store.exists(path.join('lang', client.getLocale(), `${file}.json`))) {
-    //   let langData = JSON.parse((await store.load(path.join('lang', client.getLocale(), `${file}.json`)) || '{}').toString()) as Lang
+    //   let langData = JSON.parse((await store.read(path.join('lang', client.getLocale(), `${file}.json`)) || '{}').toString()) as Lang
     //   return element.replaceWith(await createElement(client, element, templateData, langData) as Element)
     // }
   }

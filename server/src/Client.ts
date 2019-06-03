@@ -133,7 +133,7 @@ export class Client {
             let [/* fullMatch */, /* newlines */, file] = Array.from(item.match(/^.+?(\r\n\r\n|\n\n)(.+)/s) || [])
             if (file) {
               // Write the file to the temp directory
-              await Storage.mount<FileStorage>('tmp').save(temp, file, { encoding: 'binary' })
+              await Storage.mount<FileStorage>('tmp').write(temp, file, { encoding: 'binary' })
 
               // Add the file to the list of files
               this._files.push({
@@ -352,7 +352,7 @@ export class Client {
     let [file, ...keyPath] = key.split('.')
     let transValue = ''
     if (await store.exists(path.posix.join('lang', this.getLocale(), `${file}.json`))) {
-      let langData = JSON.parse((await store.load(path.posix.join('lang', this.getLocale(), `${file}.json`)) || '{}').toString()) as Lang
+      let langData = JSON.parse((await store.read(path.posix.join('lang', this.getLocale(), `${file}.json`)) || '{}').toString()) as Lang
       transValue = keyPath.reduce<any>((obj, val) => obj && obj[val] && obj[val] || '', langData || {}).toString()
     }
 

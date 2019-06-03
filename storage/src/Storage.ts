@@ -1,17 +1,13 @@
 import * as path from 'path'
-import { getConfig, log } from '@red5/server'
+import { getConfig } from '@red5/server'
+import { StorageSettings } from '.'
+import { FileConfiguration } from './drivers/file'
+import { URL } from 'url'
 
-
-export interface StorageDisk<T extends { [key: string]: any }> {
-  driver: string
-  root: string
-  options: T//{ [key: string]: any }
-}
-
-export interface StorageSettings {
-  default: string
-  cloud?: string
-  disks: { [key: string]: StorageDisk<any> }
+export interface StorageDisk {
+  driver: string,
+  root: string,
+  options?: object
 }
 
 export abstract class Storage<OptionsType extends object> {
@@ -24,7 +20,7 @@ export abstract class Storage<OptionsType extends object> {
    * @param {object} [options] The save options for when saving the file
    * @returns {Promise<boolean>}
    */
-  public abstract async save(filePath: string, data: string | Buffer, options?: object): Promise<boolean>
+  public abstract async write(filePath: string, data: string | Buffer, options?: object): Promise<boolean>
   /**
    * Loads a file from file storage
    *
@@ -32,7 +28,7 @@ export abstract class Storage<OptionsType extends object> {
    * @param {object} [options] The save options for when saving the file
    * @returns {(Promise<Buffer>)}
    */
-  public abstract async load(filePath: string, options?: object): Promise<Buffer>
+  public abstract async read(filePath: string, options?: object): Promise<Buffer>
   /**
    * Deletes a file from storage
    *
@@ -108,9 +104,9 @@ export abstract class Storage<OptionsType extends object> {
   public abstract toPath(filePath: string): string
 
   /** @internal */
-  public boot(config: StorageDisk<object>): void { }
+  public boot(config: StorageDisk): void { }
 
-  protected disk: StorageDisk<any> & { options: OptionsType }
+  protected disk: StorageDisk & { options: OptionsType }
   protected get root(): string {
     return this.disk.root
   }
@@ -119,7 +115,7 @@ export abstract class Storage<OptionsType extends object> {
 
   private static config: StorageSettings | null = null
 
-  public constructor(config: StorageDisk<any>) {
+  public constructor(config: StorageDisk) {
     this.disk = Object.freeze(config) as any
   }
 
@@ -129,15 +125,16 @@ export abstract class Storage<OptionsType extends object> {
    * @param {Storage | string} source The source storage driver
    * @param {string} sourceObject The path of the file on the source driver
    * @param {string} destinationObject The path to the destination on the current driver
-   * @returns
+   * @returns {Promise<boolean>} Whether or not the file was successfully copied
    */
-  public async copyFrom(source: Storage<OptionsType> | string, sourceObject: string, destinationObject: string) {
+  public async copyFrom(source: Storage<OptionsType> | string, sourceObject: string, destinationObject: string): Promise<boolean> {
     let storageSource = typeof source == 'string' ? Storage.mount(source) : source
     if (await storageSource.exists(sourceObject)) {
       let storageSource = typeof source == 'string' ? Storage.mount(source) : source
-      let file = await storageSource.load(sourceObject)
-      return await this.save(destinationObject, file)
+      let file = await storageSource.read(sourceObject)
+      return await this.write(destinationObject, file)
     }
+    return false
   }
 
   /**
@@ -146,15 +143,16 @@ export abstract class Storage<OptionsType extends object> {
    * @param {Storage | string} source The source storage driver
    * @param {string} sourceObject The path of the file on the source driver
    * @param {string} destinationObject The path to the destination on the current driver
-   * @returns
+   * @returns {Promise<boolean>} Whether or not the file was successfully moved
    */
-  public async moveFrom(source: Storage<object> | string, sourceObject: string, destinationObject: string) {
+  public async moveFrom(source: Storage<object> | string, sourceObject: string, destinationObject: string): Promise<boolean> {
     let storageSource = typeof source == 'string' ? Storage.mount(source) : source
     if (await storageSource.exists(sourceObject)) {
-      let file = await storageSource.load(sourceObject)
-      await this.save(destinationObject, file)
+      let file = await storageSource.read(sourceObject)
+      await this.write(destinationObject, file)
       return await storageSource.delete(sourceObject)
     }
+    return false
   }
 
   /**
@@ -165,16 +163,19 @@ export abstract class Storage<OptionsType extends object> {
    * @param {string} objectPath The path to the object
    * @returns {string} The forced path
    */
-  protected forceRoot(objectPath: string): string {
+  protected forceRoot(objectPath: string): string | URL {
+    if (/^https?:\/\//i.test(this.root)) {
+      return new URL(this.root + path.posix.resolve('/', objectPath))
+    }
     return path.posix.join(this.root, path.posix.resolve('/', objectPath))
   }
 
   public static save(path: string, data: string | Buffer) {
-    return this.mount().save(path, data)
+    return this.mount().write(path, data)
   }
 
   public static load(path: string) {
-    return this.mount().load(path)
+    return this.mount().read(path)
   }
 
   public static delete(path: string) {
@@ -249,21 +250,29 @@ export abstract class Storage<OptionsType extends object> {
    * @returns {Storage}
    * @memberof Storage
    */
-  public static mount<T extends Storage<object>>(disk: StorageDisk<any>): T
-  public static mount<T extends Storage<object>>(driver?: string | StorageDisk<any>): T {
+  public static mount<T extends Storage<object>>(disk: StorageDisk): T
+  public static mount<T extends Storage<object>>(driver?: string | StorageDisk): T {
     if (typeof driver == 'string') {
+      this.config = getConfig<StorageSettings>('storage') || null
+
       if (driver == 'tmp') {
-        return this.getDriver(<any>{
+        // If the user defined their own tmp config use it
+        if (this.config && this.config.disks && this.config.disks.tmp) {
+          return this.getDriver(this.config.disks.tmp) as T
+        }
+
+        // The user didn't define their own tmp config so use the system tmp directory
+        return this.getDriver(<FileConfiguration>{
           driver: 'file',
           root: require('os').tmpdir()
         }) as T
       }
-      this.config = getConfig<StorageSettings>('storage') || null
 
       if (!this.config) throw new Error('No storage configuration file found at "config/storage.js"')
+
       if (!driver) driver = this.config.default
       let name = Object.keys(this.config.disks).find(disk => disk == driver)
-      let config: StorageDisk<any> | null = null
+      let config: StorageDisk | null = null
 
       if (!name) throw new Error(`No storage found for "${name}"`)
       config = this.config.disks[name]
@@ -278,7 +287,7 @@ export abstract class Storage<OptionsType extends object> {
     throw new Error(`Cannot find and mount the driver`)
   }
 
-  private static getDriver(config: StorageDisk<any>): Storage<object> {
+  private static getDriver(config: StorageDisk): Storage<object> {
     try {
       // Try and load a builtin driver from the "drivers" directory
       let driver = require(path.join(__dirname, './drivers', config.driver))

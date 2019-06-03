@@ -5,7 +5,7 @@ import { Storage } from '@red5/storage'
 
 export function parseFile(file: string) {
   return new Promise<Template>(async resolve => {
-    let data = await Storage.mount('resources').load(path.join('views', file))
+    let data = await Storage.mount('resources').read(path.join('views', file))
     let tpl = new JSDOM(data)
     resolve({
       file, dom: tpl,

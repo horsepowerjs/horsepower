@@ -1,4 +1,4 @@
-import { Storage, StorageDisk } from '../Storage'
+import { Storage } from '..'
 import { Readable } from 'stream'
 
 declare type MongoClient = typeof import('mongodb').MongoClient | import('mongodb').MongoClient
@@ -6,18 +6,40 @@ declare type GridFSBucket = import('mongodb').GridFSBucket
 declare type Collection = import('mongodb').Collection
 declare type Db = import('mongodb').Db
 
+type MongoOptions = {
+  user?: string
+  pass?: string
+  host?: string
+  port?: number
+  db: string
+}
+
+export type MongoConfiguration = {
+  /**
+   * A mongodb driver
+   *
+   * @type {'mongo'}
+   */
+  driver: 'mongo'
+  /**
+   * The root storage path
+   *
+   * @type {string}
+   */
+  root: string
+  /**
+   * Mongodb connection settings
+   *
+   * @type {MongoOptions}
+   */
+  options?: MongoOptions,
+}
+
 const mongo = require.main && require.main.require('mongodb')
 const MongoClient: MongoClient = mongo.MongoClient
 const Db: new () => Db = mongo.Db
 const GridFSBucket: new (dbName: Db) => GridFSBucket = mongo.GridFSBucket
 
-export declare type MongoOptions = {
-  username?: string
-  password?: string
-  host?: string
-  port?: number
-  db: string
-}
 
 interface File {
   _id: import('mongodb').ObjectId
@@ -45,11 +67,11 @@ export default class MongoStorage extends Storage<MongoOptions> {
    * @param {StorageDisk<MongoOptions>} config
    * @memberof MongoDriver
    */
-  public async boot(config: StorageDisk<MongoOptions>) {
+  public async boot(config: MongoConfiguration) {
     if (!config.options || !config.options.db) throw new Error(`A database is required for a mongo driver; set "options.db" in the driver settings.`)
     let options = config.options
-    let username = options && options.username || ''
-    let password = options && options.password || ''
+    let username = options && options.user || ''
+    let password = options && options.pass || ''
 
     let user = ''
     if (username) user += username
@@ -66,7 +88,7 @@ export default class MongoStorage extends Storage<MongoOptions> {
     MongoStorage.connections.push({ client, name: this.name, bucket })
   }
 
-  public async save(filePath: string, data: string | Buffer): Promise<boolean> {
+  public async write(filePath: string, data: string | Buffer): Promise<boolean> {
     return new Promise<boolean>(async resolve => {
       let conn = this.getConnection(this.name)
       if (!conn) return false
@@ -75,7 +97,7 @@ export default class MongoStorage extends Storage<MongoOptions> {
       r._read = () => { }
       r.push(data)
       r.push(null)
-      r.pipe(conn.bucket.openUploadStream(this.forceRoot(filePath), {
+      r.pipe(conn.bucket.openUploadStream(<string>this.forceRoot(filePath), {
         // metadata: {
         //   mime: mimeType,
         //   type: mimeType.split('/')[0] || 'unknown',
@@ -87,23 +109,23 @@ export default class MongoStorage extends Storage<MongoOptions> {
     })
   }
 
-  public async load(filePath: string, options?: object | undefined): Promise<Buffer> {
+  public async read(filePath: string, options?: object | undefined): Promise<Buffer> {
     return new Promise(async resolve => {
       try {
         let conn = this.getConnection(this.name)
-        if (!conn) return resolve(Buffer.concat([]))
+        if (!conn) return resolve(Buffer.from(''))
         let file = await this.findFile(conn, filePath)
         if (file) {
           let chunks: any[] = []
           conn.bucket.openDownloadStream(file._id)
             .on('data', chunk => chunks.push(chunk))
-            .on('error', () => Buffer.concat([]))
+            .on('error', () => Buffer.from(''))
             .on('close', () => resolve(Buffer.concat(chunks)))
         } else {
-          resolve(Buffer.concat([]))
+          resolve(Buffer.from(''))
         }
       } catch (e) {
-        resolve(Buffer.concat([]))
+        resolve(Buffer.from(''))
       }
     })
   }
@@ -122,9 +144,9 @@ export default class MongoStorage extends Storage<MongoOptions> {
   public async prepend(filePath: string, data: string | Buffer): Promise<boolean> {
     let conn = this.getConnection(this.name)
     if (!conn) return false
-    let file = await this.load(filePath)
+    let file = await this.read(filePath)
     if (file.length > 0 && await this.delete(filePath)) {
-      return await this.save(filePath, data + file.toString())
+      return await this.write(filePath, data + file.toString())
     }
     return false
   }
@@ -132,9 +154,9 @@ export default class MongoStorage extends Storage<MongoOptions> {
   public async append(filePath: string, data: string | Buffer): Promise<boolean> {
     let conn = this.getConnection(this.name)
     if (!conn) return false
-    let file = await this.load(filePath)
+    let file = await this.read(filePath)
     if (file.length > 0 && await this.delete(filePath)) {
-      return await this.save(filePath, file.toString() + data)
+      return await this.write(filePath, file.toString() + data)
     }
     return false
   }
@@ -145,7 +167,7 @@ export default class MongoStorage extends Storage<MongoOptions> {
     let file = await this.findFile(conn, source)
     if (file) {
       conn.bucket.openDownloadStream(file._id)
-        .pipe(conn.bucket.openUploadStream(this.forceRoot(destination)))
+        .pipe(conn.bucket.openUploadStream(<string>this.forceRoot(destination)))
       return true
     }
     return false
@@ -155,7 +177,7 @@ export default class MongoStorage extends Storage<MongoOptions> {
     let conn = this.getConnection(this.name)
     if (!conn) return false
     let file = await this.findFile(conn, source)
-    if (file) conn.bucket.rename(file._id, this.forceRoot(destination))
+    if (file) conn.bucket.rename(file._id, <string>this.forceRoot(destination))
     return !!file
   }
 
@@ -175,7 +197,7 @@ export default class MongoStorage extends Storage<MongoOptions> {
     let conn = this.getConnection(this.name)
     if (!conn) return false
     const esc = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    filePath = this.forceRoot(filePath)
+    filePath = <string>this.forceRoot(filePath)
     filePath = esc(filePath.endsWith('/') ? filePath : filePath + '/')
     let collection: Collection = (<any>conn.client).db(this.disk.options.db).collection('fs.files')
     let results = await collection.aggregate([
@@ -220,7 +242,7 @@ export default class MongoStorage extends Storage<MongoOptions> {
   }
 
   public toPath(filePath: string): string {
-    return this.forceRoot(filePath)
+    return <string>this.forceRoot(filePath)
   }
 
   private async findFile(conn: MongoConnection, filename: string) {

@@ -1,12 +1,18 @@
-import { Storage, StorageDisk } from '../Storage'
-import { } from 'aws-sdk/clients/s3'
+import { Storage } from '..'
 
-declare type ClientConfiguration = import('aws-sdk/clients/s3').ClientConfiguration
-declare type S3 = new (config: ClientConfiguration) => import('aws-sdk/clients/s3')
+export declare type S3Options = import('aws-sdk/clients/s3').ClientConfiguration
+declare type S3 = new (config: S3Options) => import('aws-sdk/clients/s3')
 declare type PutObjectRequest = import('aws-sdk/clients/s3').PutObjectRequest
 declare type GetObjectRequest = import('aws-sdk/clients/s3').GetObjectRequest
 declare type DeleteObjectRequest = import('aws-sdk/clients/s3').DeleteObjectRequest
 const S3: S3 = require.main && require.main.require('aws-sdk/clients/s3')
+
+export type S3Configuration = {
+  driver: 's3'
+  root: string
+  bucket: string
+  options: S3Options
+}
 
 interface S3Connection {
   name: string
@@ -14,19 +20,22 @@ interface S3Connection {
   bucket: string
 }
 
-export default class AmazonS3Storage extends Storage<ClientConfiguration> {
+export default class AmazonS3Storage extends Storage<S3Options> {
 
   public static connections: S3Connection[] = []
 
-  public async boot(config: StorageDisk<ClientConfiguration>) {
+  public async boot(config: S3Configuration) {
+
+    if (!config.bucket) throw new Error(`A bucket is required for a s3 driver; set "bucket" in the driver settings.`)
+
     AmazonS3Storage.connections.push({
       name: this.name,
       conn: new S3(config.options),
-      bucket: config.root
+      bucket: config.bucket
     })
   }
 
-  public async save(filePath: string, data: string | Buffer, options?: PutObjectRequest | undefined): Promise<boolean> {
+  public async write(filePath: string, data: string | Buffer, options?: PutObjectRequest | undefined): Promise<boolean> {
     return new Promise(resolve => {
       let conn = this.getConnection()
       if (!conn) return false
@@ -44,7 +53,7 @@ export default class AmazonS3Storage extends Storage<ClientConfiguration> {
     })
   }
 
-  public async load(filePath: string, options?: GetObjectRequest | undefined): Promise<Buffer> {
+  public async read(filePath: string, options?: GetObjectRequest | undefined): Promise<Buffer> {
     return new Promise(resolve => {
       let conn = this.getConnection()
       if (!conn) return false
@@ -53,10 +62,10 @@ export default class AmazonS3Storage extends Storage<ClientConfiguration> {
         Key: filePath
       }
       if (options) v = Object.assign(v, options)
-      conn.conn.getObject(v, (err, data) => {
+      conn.conn.getObject(v, async (err, data) => {
         // if (err) return resolve(Buffer.concat([]))
-        if (data.Body) return resolve(Buffer.from(data.Body.toString()))
-        return resolve(Buffer.concat([]))
+        if (data && data.Body) return resolve(Buffer.from(data.Body.toString()))
+        return resolve(Buffer.from(''))
       })
     })
   }
@@ -75,11 +84,17 @@ export default class AmazonS3Storage extends Storage<ClientConfiguration> {
   }
 
   public async prepend(filePath: string, data: string | Buffer): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    let conn = this.getConnection()
+    if (!conn) return false
+    let fileData = (await this.read(filePath)).toString()
+    return await this.write(filePath, data.toString() + fileData)
   }
 
   public async append(filePath: string, data: string | Buffer): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    let conn = this.getConnection()
+    if (!conn) return false
+    let fileData = (await this.read(filePath)).toString()
+    return await this.write(filePath, fileData + data.toString())
   }
 
   public async copy(source: string, destination: string): Promise<boolean> {

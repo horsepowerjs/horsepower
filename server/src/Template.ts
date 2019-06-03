@@ -67,7 +67,7 @@ export class Template {
       // This just loads the and sets the content-type based on the extension
       // this includes html, txt, csv, etc
       else {
-        html = (await Storage.mount('resources').load(path.join('views', filePath)) || '').toString()
+        html = (await Storage.mount('resources').read(path.join('views', filePath)) || '').toString()
         // html = await new Promise<string>(resolve => fs.readFile(file, (err, result) => resolve((result || '').toString())))
       }
     }

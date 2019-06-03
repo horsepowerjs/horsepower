@@ -170,7 +170,7 @@ export class Server {
           console.log(`    ${'Method'.padEnd(10)}${'Route'.padEnd(longestRoute + 3)}${'Controller'.padEnd(longestController + 3)}${'Name'}`)
           console.log(`${''.padEnd(longestController + longestRoute + longestName + 20, '-')}`)
           Router.domains.forEach(domain => {
-            console.log(domain.domain)
+            console.log(`${domain.domain}`)
             domain.routes.forEach(route => {
               let method = route.method.toUpperCase()
               let routeAlias = route.pathAlias instanceof RegExp ? `RegExp(${route.pathAlias.source})` : route.pathAlias
