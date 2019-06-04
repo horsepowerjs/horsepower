@@ -1,7 +1,8 @@
 import { Storage } from '..'
 import { Readable } from 'stream'
 
-declare type MongoClient = typeof import('mongodb').MongoClient | import('mongodb').MongoClient
+declare type MongoClientStatic = typeof import('mongodb').MongoClient
+declare type MongoClient = import('mongodb').MongoClient
 declare type GridFSBucket = import('mongodb').GridFSBucket
 declare type Collection = import('mongodb').Collection
 declare type Db = import('mongodb').Db
@@ -82,10 +83,18 @@ export default class MongoStorage extends Storage<MongoOptions> {
     let port = options && options.port || 27017
     let url = `mongodb://${user}${host}:${port}`
 
-    let client = await MongoClient.connect(url, { useNewUrlParser: true })
+    let client = await (<MongoClientStatic>(MongoClient as unknown)).connect(url, { useNewUrlParser: true })
     let bucket = new GridFSBucket(client.db(options.db))
 
     MongoStorage.connections.push({ client, name: this.name, bucket })
+  }
+
+  public async shutdown() {
+    let conn = this.getConnection(this.name)
+    if (!conn) return
+    let idx = MongoStorage.connections.findIndex(i => i.name == this.name)
+    idx > -1 && MongoStorage.connections.splice(idx, 1)
+    conn.client.close()
   }
 
   public async write(filePath: string, data: string | Buffer): Promise<boolean> {
@@ -242,7 +251,7 @@ export default class MongoStorage extends Storage<MongoOptions> {
   }
 
   public toPath(filePath: string): string {
-    return <string>this.forceRoot(filePath)
+    return this.forceRoot(filePath).toString()
   }
 
   private async findFile(conn: MongoConnection, filename: string) {

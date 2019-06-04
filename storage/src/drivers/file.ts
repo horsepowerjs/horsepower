@@ -213,7 +213,7 @@ export default class extends Storage<{}> {
    */
   public copy(source: string, destination: string): Promise<boolean> {
     return new Promise(async resolve => {
-      let dir = path.parse(this.forceRoot(destination)).dir
+      let dir = path.parse(<string>this.forceRoot(destination)).dir
       await new Promise(r => mkdirp(dir, (err) => { err ? r(false) : r(true) }))
       let readStream = fs.createReadStream(this.forceRoot(source))
       let writeStream = fs.createWriteStream(this.forceRoot(destination))
@@ -235,7 +235,7 @@ export default class extends Storage<{}> {
    */
   public move(source: string, destination: string): Promise<boolean> {
     return new Promise(async resolve => {
-      let dir = path.parse(this.forceRoot(destination)).dir
+      let dir = path.parse(<string>this.forceRoot(destination)).dir
       await new Promise(r => mkdirp(dir, (err) => { err ? r(false) : r(true) }))
       fs.rename(this.forceRoot(source), this.forceRoot(destination), (err) => {
         resolve(!err)
@@ -296,6 +296,6 @@ export default class extends Storage<{}> {
    * @returns
    */
   public toPath(objectPath: string) {
-    return this.forceRoot(objectPath)
+    return this.forceRoot(objectPath).toString()
   }
 }

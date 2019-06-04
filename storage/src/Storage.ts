@@ -103,8 +103,18 @@ export abstract class Storage<OptionsType extends object> {
    */
   public abstract toPath(filePath: string): string
 
-  /** @internal */
+  /**
+   * Boots the disk up, this will execute any startup commands that need to run
+   * to startup the disk such as connecting to external servers with username/passwords.
+   * @internal
+   */
   public boot(config: StorageDisk): void { }
+  /**
+   * Shuts the disk down, this will execute any commands for cleanup, such as
+   * disconnecting from external servers.
+   * @internal
+   */
+  public shutdown(): void { }
 
   protected disk: StorageDisk & { options: OptionsType }
   protected get root(): string {

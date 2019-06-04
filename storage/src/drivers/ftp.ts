@@ -1,23 +1,21 @@
-import { URL } from 'url'
-import * as http from 'http'
-import * as https from 'https'
+import * as path from 'path'
 import { Storage } from '../Storage'
 
 
 declare type Client = import('ftp')
 
-const Client: new (options?: FTPOptions) => Client = require.main && require.main.require('ftp')
+const Client: new () => Client = require.main && require.main.require('ftp')
 
 type FTPOptions = {
-  host: string
-  port: number
-  secure: boolean | 'control' | 'implicit'
-  secureOptions: object
-  user: string
-  password: string
-  connTimeout: number
-  pasvTimeout: number
-  keepalive: number
+  host?: string
+  port?: number
+  secure?: boolean | 'control' | 'implicit'
+  secureOptions?: object
+  user?: string
+  password?: string
+  connTimeout?: number
+  pasvTimeout?: number
+  keepalive?: number
 }
 
 export type FTPConfiguration = {
@@ -31,45 +29,69 @@ interface FTPConnection {
   client: Client
 }
 
-export default class FTPStorage extends Storage<{}> {
+export default class FTPStorage extends Storage<FTPOptions> {
 
   protected static connections: FTPConnection[] = []
 
-  public async boot(config: FTPConfiguration) {
-    FTPStorage.connections.push({
-      client: new Client(config.options),
-      name: this.name
+  public async boot(config: FTPConfiguration): Promise<void> {
+    return new Promise(resolve => {
+      let c = new Client()
+      c.on('ready', () => {
+        FTPStorage.connections.push({
+          client: c,
+          name: this.name
+        })
+        resolve()
+      })
+      c.connect(config.options)
     })
   }
 
+  public async shutdown() {
+    let conn = this.getConnection(this.name)
+    if (!conn) return
+    let idx = FTPStorage.connections.findIndex(i => i.name == this.name)
+    idx > -1 && FTPStorage.connections.splice(idx, 1)
+    conn.client.end()
+  }
+
   public async write(filePath: string, data: string | Buffer, options?: object | undefined): Promise<boolean> {
-    return new Promise(resolve => {
-      let req = this.getScheme().request('/write')
-        .on('error', () => resolve(false))
-        .on('finish', () => resolve(true))
-      req.write({
-        filename: filePath,
-        data
+    return new Promise<boolean>(resolve => {
+      let conn = this.getConnection(this.name)
+      if (!conn) return resolve(false)
+      filePath = this.forceRoot(filePath) as string
+      conn.client.put(data, filePath, (err) => {
+        if (err) return resolve(false)
+        resolve(true)
       })
-      req.end()
     })
   }
 
   public async read(filePath: string, options?: object | undefined): Promise<Buffer> {
-    return new Promise(resolve => {
+    return new Promise<Buffer>(resolve => {
+      let conn = this.getConnection(this.name)
+      if (!conn) return resolve(Buffer.from(''))
+      filePath = this.forceRoot(filePath) as string
       let chunks: any[] = []
-      let req = this.getScheme().request('/read', res => {
-        res.on('data', data => chunks.push(data))
-        res.on('end', () => res.destroy())
-        res.on('close', () => resolve(Buffer.concat(chunks)))
+      conn.client.get(filePath, (err, stream) => {
+        if (err) return resolve(Buffer.from(''))
+        stream.on('data', chunk => chunks.push(chunk))
+          .on('error', () => Buffer.from(''))
+          .on('close', () => resolve(Buffer.concat(chunks)))
       })
-      req.write({ filename: filePath })
-      req.end()
     })
   }
 
   public async delete(filePath: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    return new Promise<boolean>(resolve => {
+      let conn = this.getConnection(this.name)
+      if (!conn) return resolve(false)
+      filePath = this.forceRoot(filePath) as string
+      conn.client.delete(filePath, (err) => {
+        if (err) return resolve(false)
+        return resolve(true)
+      })
+    })
   }
 
   public async prepend(filePath: string, data: string | Buffer): Promise<boolean> {
@@ -77,34 +99,84 @@ export default class FTPStorage extends Storage<{}> {
   }
 
   public async append(filePath: string, data: string | Buffer): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    return new Promise<boolean>(resolve => {
+      let conn = this.getConnection(this.name)
+      if (!conn) return resolve(false)
+      filePath = this.forceRoot(filePath) as string
+      conn.client.append(data, filePath, (err) => {
+        if (err) return resolve(false)
+        return resolve(true)
+      })
+    })
   }
 
   public async copy(source: string, destination: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    let conn = this.getConnection(this.name)
+    if (!conn) return false
+    let data = await this.read(source)
+    return await this.write(destination, data)
   }
 
   public async move(source: string, destination: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    return new Promise<boolean>(resolve => {
+      let conn = this.getConnection(this.name)
+      if (!conn) return resolve(false)
+      source = this.forceRoot(source) as string
+      destination = this.forceRoot(destination) as string
+      conn.client.rename(source, destination, (err) => {
+        if (err) return resolve(false)
+        return resolve(true)
+      })
+    })
   }
 
   public async exists(filePath: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    return new Promise<boolean>(resolve => {
+      let conn = this.getConnection(this.name)
+      if (!conn) return resolve(false)
+      filePath = this.forceRoot(filePath) as string
+      let dir = path.parse(filePath).dir
+      let name = path.parse(filePath).base
+      conn.client.list(dir, (err, listing) => {
+        if (err) return resolve(false)
+        resolve(listing.filter(i => i.name == name).length > 0)
+      })
+    })
   }
 
   public async isFile(filePath: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    return new Promise<boolean>(resolve => {
+      let conn = this.getConnection(this.name)
+      if (!conn) return resolve(false)
+      filePath = this.forceRoot(filePath) as string
+      let dir = path.parse(filePath).dir
+      let name = path.parse(filePath).base
+      conn.client.list(dir, (err, listing) => {
+        if (err) return resolve(false)
+        return resolve(listing.filter(i => i.name == name && i.type == '-').length > 0)
+      })
+    })
   }
 
   public async isDirectory(filePath: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    return new Promise<boolean>(resolve => {
+      let conn = this.getConnection(this.name)
+      if (!conn) return resolve(false)
+      filePath = this.forceRoot(filePath) as string
+      let dir = path.parse(filePath).dir
+      let name = path.parse(filePath).base
+      conn.client.list(dir, (err, listing) => {
+        if (err) return resolve(false)
+        return resolve(listing.filter(i => i.name == name && i.type.toLowerCase() == 'd').length > 0)
+      })
+    })
   }
 
   public toPath(filePath: string): string {
-    throw new Error('Method not implemented.');
+    return this.forceRoot(filePath).toString()
   }
 
-  private getScheme(): typeof http | typeof https {
-    return /^https/i.test(this.root) ? https : http
+  private getConnection(name: string) {
+    return FTPStorage.connections.find(c => c.name == name)
   }
 }
