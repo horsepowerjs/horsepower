@@ -56,14 +56,12 @@ export default class FTPStorage extends Storage<FTPOptions> {
   }
 
   public async write(filePath: string, data: string | Buffer, options?: object | undefined): Promise<boolean> {
-    return new Promise<boolean>(resolve => {
+    return new Promise<boolean>(async resolve => {
       let conn = this.getConnection(this.name)
       if (!conn) return resolve(false)
       filePath = this.forceRoot(filePath) as string
-      conn.client.put(data, filePath, (err) => {
-        if (err) return resolve(false)
-        resolve(true)
-      })
+      await new Promise(r => conn && conn.client.mkdir(path.dirname(filePath), true, () => r()))
+      conn.client.put(data, filePath, (err) => err ? resolve(false) : resolve(true))
     })
   }
 
@@ -75,9 +73,12 @@ export default class FTPStorage extends Storage<FTPOptions> {
       let chunks: any[] = []
       conn.client.get(filePath, (err, stream) => {
         if (err) return resolve(Buffer.from(''))
-        stream.on('data', chunk => chunks.push(chunk))
-          .on('error', () => Buffer.from(''))
+        stream
+          .on('data', chunk => chunks.push(chunk))
+          .on('error', () => resolve(Buffer.from('')))
           .on('close', () => resolve(Buffer.concat(chunks)))
+          .on('finish', () => resolve(Buffer.concat(chunks)))
+          .on('end', () => resolve(Buffer.concat(chunks)))
       })
     })
   }

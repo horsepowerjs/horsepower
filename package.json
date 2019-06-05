@@ -13,7 +13,7 @@
         "@types/gulp-sourcemaps": "0.0.32",
         "@types/gulp-typescript": "^2.13.0",
         "@types/jsdom": "^12.2.3",
-        "@types/node": "^10.14.4",
+        "@types/node": "^12.0.4",
         "@types/vinyl": "^2.0.2",
         "@types/vinyl-fs": "^2.4.11",
         "gulp": "^4.0.0",
