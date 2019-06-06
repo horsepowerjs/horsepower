@@ -1,11 +1,21 @@
 import { Storage } from '..'
 
-export declare type S3Options = import('aws-sdk/clients/s3').ClientConfiguration
-declare type S3 = new (config: S3Options) => import('aws-sdk/clients/s3')
-declare type PutObjectRequest = import('aws-sdk/clients/s3').PutObjectRequest
-declare type GetObjectRequest = import('aws-sdk/clients/s3').GetObjectRequest
-declare type DeleteObjectRequest = import('aws-sdk/clients/s3').DeleteObjectRequest
-const S3: S3 = require.main && require.main.require('aws-sdk/clients/s3')
+let S3: S3
+try {
+  require.resolve('aws-sdk')
+  S3 = require.main && require.main.require('aws-sdk/clients/s3')
+} catch (e) {
+  throw new Error(JSON.stringify({
+    code: 'dependency-not-found',
+    msg: 'The module "aws-sdk" is a dependency of the s3 storage driver. It needs to be installed manually "npm i -s aws-sdk"'
+  }))
+}
+
+export type S3Options = import('aws-sdk/clients/s3').ClientConfiguration
+type S3 = new (config: S3Options) => import('aws-sdk/clients/s3')
+type PutObjectRequest = import('aws-sdk/clients/s3').PutObjectRequest
+type GetObjectRequest = import('aws-sdk/clients/s3').GetObjectRequest
+type DeleteObjectRequest = import('aws-sdk/clients/s3').DeleteObjectRequest
 
 export type S3Configuration = {
   driver: 's3'

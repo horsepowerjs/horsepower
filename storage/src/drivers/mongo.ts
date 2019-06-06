@@ -1,11 +1,22 @@
 import { Storage } from '..'
 import { Readable } from 'stream'
 
-declare type MongoClientStatic = typeof import('mongodb').MongoClient
-declare type MongoClient = import('mongodb').MongoClient
-declare type GridFSBucket = import('mongodb').GridFSBucket
-declare type Collection = import('mongodb').Collection
-declare type Db = import('mongodb').Db
+let mongo
+try {
+  require.resolve('mongodb')
+  mongo = require.main && require.main.require('mongodb')
+} catch (e) {
+  throw new Error(JSON.stringify({
+    code: 'dependency-not-found',
+    msg: 'The module "mongodb" is dependency of the mongo storage driver. It needs to be installed manually "npm i -s mongodb"'
+  }))
+}
+
+type MongoClientStatic = typeof import('mongodb').MongoClient
+type MongoClient = import('mongodb').MongoClient
+type GridFSBucket = import('mongodb').GridFSBucket
+type Collection = import('mongodb').Collection
+type Db = import('mongodb').Db
 
 type MongoOptions = {
   user?: string
@@ -36,7 +47,6 @@ export type MongoConfiguration = {
   options?: MongoOptions,
 }
 
-const mongo = require.main && require.main.require('mongodb')
 const MongoClient: MongoClient = mongo.MongoClient
 const Db: new () => Db = mongo.Db
 const GridFSBucket: new (dbName: Db) => GridFSBucket = mongo.GridFSBucket

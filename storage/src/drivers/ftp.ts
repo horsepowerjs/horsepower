@@ -1,7 +1,23 @@
 import * as path from 'path'
 import { Storage } from '../Storage'
-import { Client, AccessOptions, FileInfo } from 'basic-ftp'
 import { Duplex, Writable } from 'stream'
+
+let Client: new () => Client
+// Check to see if the user has the dependency installed
+try {
+  require.resolve('basic-ftp')
+  Client = require.main && require.main.require('basic-ftp').Client
+} catch (e) {
+  throw new Error(JSON.stringify({
+    code: 'dependency-not-found',
+    msg: 'The module "basic-ftp" is a dependency of the ftp storage driver. It needs to be installed manually "npm i -s basic-ftp"'
+  }))
+}
+
+type AccessOptions = import('basic-ftp').AccessOptions
+type FileInfo = import('basic-ftp').FileInfo
+type Client = import('basic-ftp').Client
+
 
 export type FTPConfiguration = {
   driver: 'ftp'
