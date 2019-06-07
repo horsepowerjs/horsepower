@@ -32,7 +32,7 @@ export class Session {
 
   private _started: boolean = false
   private _record: SessionRecord = this._originalRecord
-  private store: Storage
+  private store: Storage<object>
 
   private get file() { return path.join('red5', 'sessions', this._record.id + '.sess') }
   public get csrf() { return this._record.csrf || '' }

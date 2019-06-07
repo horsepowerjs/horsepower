@@ -1,5 +1,5 @@
 import { StorageSettings, Storage } from '@red5/storage'
-import { Client, Response, log } from '@red5/server'
+import { Client, Response, log } from '.'
 import { MiddlewareManager } from '@red5/middleware'
 import { Router } from '@red5/router'
 
