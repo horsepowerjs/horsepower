@@ -26,6 +26,7 @@ npm rm -g @red5/session &
 npm rm -g @red5/storage &
 npm rm -g @red5/template &
 npm rm -g @red5/mysql &
+npm rm -g @red5/auth &
 wait
 
 printf "${CYAN}Removing node_modules/@red5 from modules${NC}\n"
@@ -36,6 +37,7 @@ rm -rf ./server/node_modules/@red5 &
 rm -rf ./session/node_modules/@red5 &
 rm -rf ./storage/node_modules/@red5 &
 rm -rf ./template/node_modules/@red5 &
+rm -rf ./auth/node_modules/@red5 &
 wait
 
 # Generate the links
@@ -47,6 +49,7 @@ npm link ./storage &
 npm link ./template &
 npm link ./middleware &
 npm link ./mysql &
+npm link ./auth &
 wait
 
 # Link the server to the dependencies
@@ -65,6 +68,7 @@ npm link @red5/server &
 # However, we need them for development purposes.
 npm link @red5/template &
 npm link @red5/mysql &
+npm link @red5/auth &
 wait
 
 cd ../middleware
@@ -89,6 +93,13 @@ wait
 
 cd ../template
 npm link @red5/storage &
+wait
+
+cd ../auth
+npm link @red5/mysql &
+npm link @red5/router &
+npm link @red5/server &
+npm link @red5/session &
 wait
 
 printf "${CYAN}Building packages${NC}\n"

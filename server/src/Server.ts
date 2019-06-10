@@ -14,6 +14,7 @@ import { serialize, CookieSerializeOptions } from 'cookie'
 
 import { Template } from './Template'
 import { getConfig, configPath, applicationPath, isProduction } from './helper'
+import { Plugin } from './Plugin';
 
 export interface RouterSettings {
   controllers: string
@@ -68,6 +69,7 @@ export class Server {
   public static app?: AppSettings
 
   private static _clients: Client[] = []
+  private static _plugins: Plugin[] = []
 
   public static start() {
     // Load the application env file if it exists
@@ -96,9 +98,26 @@ export class Server {
       let storage = getConfig<StorageSettings>('storage')
       let db = getConfig<DBSettings>('db')
       let route = getConfig<RouterSettings>('route')
+      let plugins = getConfig<string[]>('plugin')
+
+      // Boot up any added plugins
+      if (plugins) {
+        for (let plugin of plugins) {
+          try {
+            let p = await import(plugin)
+            let newPlugin = new p.default() as Plugin
+            await newPlugin.boot()
+            Router.addControllerRoot(newPlugin.controllers)
+            this._plugins.push(newPlugin)
+          } catch (e) {
+            log.error(`Could not load the plugin '${plugin}': ${e.message}`)
+            throw e
+          }
+        }
+      }
 
       // Setup dependencies
-      route && Router.setControllersRoot(route.controllers)
+      route && Router.addControllerRoot(route.controllers)
       views && Template.setTemplatesRoot(views.path)
 
       let appConfig = getConfig<AppSettings>('app')
@@ -150,6 +169,10 @@ export class Server {
           await import(route.routes)
           // Load the builtin routes
           await import('./routes')
+          // Load the plugin routes
+          for (let plugin of this._plugins) {
+            await import(plugin.routes)
+          }
           // Get the longest route
           let longestRoute = Math.max(...Router.domains.map(d => d.routes.reduce((num, val) => {
             let len = val.pathAlias instanceof RegExp ? `RegExp(${val.pathAlias.source})`.length : val.pathAlias.length

@@ -34,6 +34,17 @@ export function getData(text: string, data: TemplateData, scope?: string) {
     dataToSearch = data.scopes && data.scopes.length > 0 ?
       (data.scopes.find(i => i.reference == scope) || { data: {} }).data : {}
   }
+  // Call function
+  if (text.includes('(') && text.includes(')')) {
+    let matches = text.match(/(.+)\((.+)\)/)
+    if (matches && matches[1]) {
+      let params = matches[2] && matches[2].trim().replace(/^('|")|('|")$/g, '').split(',') || []
+      let func = find(matches[1], dataToSearch)
+      if (typeof func == 'function') {
+        return func(...params)
+      }
+    }
+  }
   return find(text.replace(/^\$/, ''), dataToSearch)
   // return find(text.replace(/^\{\{|\}\}$/g, ''), dataToSearch)
 }
@@ -101,7 +112,6 @@ export function replaceVariables(string: string, data: any) {
   })
   return string
 }
-
 
 /**
  * Removes the first element in a variable

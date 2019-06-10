@@ -154,7 +154,12 @@ export class Client {
       try {
         this._post = JSON.parse(body)
       } catch (e) {
-        this._post = body
+        try {
+          let d = querystring.parse(body)
+          this._post = d
+        } catch (e) {
+          this._post = body
+        }
       }
     }
   }
@@ -225,6 +230,7 @@ export class Client {
        * @returns {T}
        */
       post<T extends any>(key: string, defaultValue: any = ''): T {
+        console.log('d', $this._post)
         if ($this._post[key]) return $this._post[key]
         return defaultValue
       },

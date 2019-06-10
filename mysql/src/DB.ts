@@ -528,6 +528,11 @@ export class DB {
     return await new DB().query(query, ...replacements)
   }
 
+  public static async insert(query: string, ...replacements: any[]): Promise<boolean> {
+    let result = await new DB().query(query, ...replacements)
+    return !!result.length
+  }
+
   /**
    * Connects to the database if no connection is found then executes the query
    *
@@ -652,11 +657,12 @@ export class DB {
    * @returns {Promise<RowDataPacket>}
    * @memberof DB
    */
-  public async first(): Promise<RowDataPacket> {
+  public async first(): Promise<RowDataPacket | null> {
     let s = this._queryInfo.limit, sl = this._queryInfo.offset
-    let row = (await this.limit(1).offset(0).get())[0]
+    let rows = await this.limit(1).offset(0).get()
+    if (rows.length == 0) return null
     this.limit(s).offset(sl)
-    return row
+    return rows[0]
   }
 
   /**

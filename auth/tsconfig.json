@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "outDir": "lib",
+    "declarationDir": "types",
+    "typeRoots": [
+      "../router/types",
+      "../server/types",
+      "../node_modules/@types"
+    ]
+  },
+  "extends": "../tsconfig.json",
+  "include": [
+    "src/**/*.ts"
+  ]
+}

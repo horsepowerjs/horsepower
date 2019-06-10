@@ -1,4 +1,9 @@
-import { DB } from './DB';
+import { DB, DBRaw } from './DB';
+
+export interface FieldData {
+  column: string
+  value: any
+}
 
 export abstract class Model extends DB {
 
@@ -19,6 +24,8 @@ export abstract class Model extends DB {
    */
   protected $attributes: { [key: string]: any } = {}
 
+  private fieldData: FieldData[] = []
+
   protected constructor() {
     super()
   }
@@ -31,6 +38,44 @@ export abstract class Model extends DB {
   public async get(): Promise<any[]> {
     this._init()
     return await super.get()
+  }
+
+  public set(column: string, value: any) {
+    this.fieldData.push({ column, value })
+    return this
+  }
+
+  public async save(): Promise<boolean> {
+    // let tbl = DB.table(this.$table)
+    // if (Array.isArray(this.$primaryKey)) {
+    //   this.$primaryKey.forEach(key => {
+    //     let data = this.fieldData.find(i => i.column == key)
+    //     tbl.where(key, data && data.value || '')
+    //   })
+    // } else {
+    //   let data = this.fieldData.find(i => i.column == this.$primaryKey)
+    //   tbl.where(this.$primaryKey, data && data.value || '')
+    // }
+    // let item = await tbl.first()
+    // if (!item) {
+    let items: string[] = this.fieldData.map(i => [i.column, i.value]).flat()
+    let queryParams = this.fieldData.map(i => '?? = ?').join(', ')
+    return await DB.insert(`insert into ?? set  ${queryParams}`, ...[this.$table, ...items])
+    // } else {
+    //   console.log('here')
+    // }
+    return true
+  }
+
+  public async exists(...fields: string[]): Promise<boolean> {
+    let tbl = DB.table(this.$table)
+    if (fields.length > 0) {
+      for (let fld of fields) {
+        let data = this.fieldData.find(i => i.column == fld)
+        tbl.where(fld, data && data.value || '')
+      }
+    }
+    return !!((await tbl.setSelect(new DBRaw('1')).get()).length)
   }
 
   public async chunk(rows: number, callback: (rows: any[]) => void): Promise<void>

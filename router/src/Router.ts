@@ -19,8 +19,8 @@ export interface RouterOptions {
 }
 
 export type RouteFunction = (client: Client) => void
-
-export type RouteCallback = string | RouteFunction | Promise<RouteFunction | string | void>
+export type RouteClass = new () => void
+export type RouteCallback = string | RouteFunction | RouteClass | Promise<RouteFunction | RouteClass | string | void>
 
 declare type RouteInfo = Promise<{
   route: Route | undefined
@@ -39,9 +39,9 @@ export class Router {
   private static readonly groupOptions: RouterOptions[] = []
   private static currentDomain: string | RegExp = 'default'
   private static readonly _domains: Domain[] = []
-  private static controllerRoot: string = path.join((
-    path.dirname(require.main && require.main.filename || __filename)
-  ), 'controllers')
+  private static controllerRoots: string[] = [
+    path.join((path.dirname(require.main && require.main.filename || __filename)), 'app/controllers')
+  ]
 
   public static routes(domainName: string = 'default') {
     let domain = this.findDomain(domainName)
@@ -51,8 +51,8 @@ export class Router {
 
   public static get domains() { return this._domains }
 
-  public static setControllersRoot(root: string) {
-    this.controllerRoot = root
+  public static addControllerRoot(root: string) {
+    this.controllerRoots.push(root)
   }
 
   public static async route(route: UrlWithStringQuery, method: RequestMethod): RouteInfo {
@@ -81,8 +81,18 @@ export class Router {
         let [controller, method] = theRoute.callback.split('@')
         if (!method) method = 'main'
         if (controller && method && controller.length > 0 && method.length > 0) {
-          let module = await import(path.join(this.controllerRoot, controller))
-          callback = module[method]
+          for (let root of this.controllerRoots) {
+            try {
+              let module = await import(path.join(root, controller))
+              if (module && module.constructor && module.default) {
+                callback = new module.default()[method]
+                break
+              } else {
+                callback = module[method]
+                break
+              }
+            } catch (e) { }
+          }
         }
       } else if (theRoute && typeof theRoute.callback == 'function') {
         callback = theRoute.callback
@@ -646,14 +656,6 @@ export class Router {
           return r.pathAlias.test(route.pathname || '')
         return false
       })
-      // // Find routes based on exact match
-      // let theRoute = this._routes.find(r => {
-      //   if (typeof r.pathAlias == 'string')
-      //     return r.pathAlias == route.pathname && method.toLowerCase() == r.method.toLowerCase()
-      //   else if (r.pathAlias instanceof RegExp)
-      //     return r.pathAlias.test(route.pathname || '')
-      //   return false
-      // })
       // If no exact match was found
       if (!theRoute) {
         let routeCrumbs = route.pathname.split('/').filter(i => i.trim().length > 0)

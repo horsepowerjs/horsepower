@@ -11,6 +11,7 @@ export * from './helper'
 export * from './Client'
 export * from './Response'
 export * from './Event'
+export * from './Plugin'
 
 export function start() {
   Server.start()

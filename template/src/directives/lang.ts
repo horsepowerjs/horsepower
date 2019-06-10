@@ -1,8 +1,5 @@
-import * as path from 'path'
-
 import { Template } from '../helpers/extend'
 import { Client, Lang } from '@red5/server'
-import { Storage } from '@red5/storage'
 import { TemplateData } from '..'
 import { replaceVariables } from '../helpers'
 
