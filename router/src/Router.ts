@@ -42,6 +42,7 @@ export class Router {
   private static controllerRoots: string[] = [
     path.join((path.dirname(require.main && require.main.filename || __filename)), 'app/controllers')
   ]
+  private static middlewareRoots: string[] = []
 
   public static routes(domainName: string = 'default') {
     let domain = this.findDomain(domainName)
@@ -53,6 +54,10 @@ export class Router {
 
   public static addControllerRoot(root: string) {
     this.controllerRoots.push(root)
+  }
+
+  public static addMiddlewareRoot(root: string) {
+    this.middlewareRoots.push(root)
   }
 
   public static async route(route: UrlWithStringQuery, method: RequestMethod): RouteInfo {

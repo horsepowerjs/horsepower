@@ -8,18 +8,18 @@ const projects = {
   router: './router',
   server: './server',
   storage: './storage',
-  session: './session',
   template: './template',
   middleware: './middleware',
   // Optional dependencies
   mysql: './mysql',
-  auth: './auth'
+  session: './plugins/session',
+  auth: './plugins/auth'
 }
 
 const tasks = [
-  'router', 'middleware', 'template', 'storage', 'session', 'server',
+  'router', 'middleware', 'template', 'storage', 'server',
   // Optional dependencies
-  'mysql', 'auth'
+  'mysql', 'session', 'auth'
 ]
 
 /**
@@ -55,23 +55,23 @@ async function makeProject(projectRoot) {
 gulp.task('router', () => makeProject(path.join(__dirname, projects.router)))
 gulp.task('server', () => makeProject(path.join(__dirname, projects.server)))
 gulp.task('storage', () => makeProject(path.join(__dirname, projects.storage)))
-gulp.task('session', () => makeProject(path.join(__dirname, projects.session)))
 gulp.task('template', () => makeProject(path.join(__dirname, projects.template)))
 gulp.task('middleware', () => makeProject(path.join(__dirname, projects.middleware)))
 // Optional dependencies
 gulp.task('mysql', () => makeProject(path.join(__dirname, projects.mysql)))
+gulp.task('session', () => makeProject(path.join(__dirname, projects.session)))
 gulp.task('auth', () => makeProject(path.join(__dirname, projects.auth)))
 
 gulp.task('build:watch', gulp.series([...tasks, () => {
   gulp.watch('./router/src/**/*.ts', gulp.series('router'))
   gulp.watch('./server/src/**/*.ts', gulp.series('server'))
   gulp.watch('./storage/src/**/*.ts', gulp.series('storage'))
-  gulp.watch('./session/src/**/*.ts', gulp.series('session'))
   gulp.watch('./template/src/**/*.ts', gulp.series('template'))
   gulp.watch('./middleware/src/**/*.ts', gulp.series('middleware'))
   // Optional dependencies
   gulp.watch('./mysql/src/**/*.ts', gulp.series('mysql'))
-  gulp.watch('./auth/src/**/*.ts', gulp.series('auth'))
+  gulp.watch('./plugins/session/src/**/*.ts', gulp.series('session'))
+  gulp.watch('./plugins/auth/src/**/*.ts', gulp.series('auth'))
 }]))
 
 gulp.task('build', gulp.series(...tasks))

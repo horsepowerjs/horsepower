@@ -1,6 +1,5 @@
 import { StorageSettings, Storage } from '@red5/storage'
-import { Client, Response, log } from '.'
-import { MiddlewareManager } from '@red5/middleware'
+import { Client, Response, log, MiddlewareManager } from '.'
 import { Router } from '@red5/router'
 
 import * as http from 'http'
@@ -71,6 +70,8 @@ export class Server {
   private static _clients: Client[] = []
   private static _plugins: Plugin[] = []
 
+  public static get plugins(): Plugin[] { return this._plugins }
+
   public static start() {
     // Load the application env file if it exists
     let envPath = applicationPath('.env')
@@ -99,22 +100,6 @@ export class Server {
       let db = getConfig<DBSettings>('db')
       let route = getConfig<RouterSettings>('route')
       let plugins = getConfig<string[]>('plugin')
-
-      // Boot up any added plugins
-      if (plugins) {
-        for (let plugin of plugins) {
-          try {
-            let p = await import(plugin)
-            let newPlugin = new p.default() as Plugin
-            await newPlugin.boot()
-            Router.addControllerRoot(newPlugin.controllers)
-            this._plugins.push(newPlugin)
-          } catch (e) {
-            log.error(`Could not load the plugin '${plugin}': ${e.message}`)
-            throw e
-          }
-        }
-      }
 
       // Setup dependencies
       route && Router.addControllerRoot(route.controllers)
@@ -160,6 +145,27 @@ export class Server {
           }
         }
       }
+      // Boot up any added plugins
+      if (plugins) {
+        console.log(`    --- Plugins ---`)
+        let longestPluginName = Math.max(...plugins.map(i => i.length))
+        for (let plugin of plugins) {
+          let display = (plugin + ':').padEnd(longestPluginName + 1)
+          try {
+            let p = await import(plugin)
+            let newPlugin = new p.default(plugin) as Plugin
+            await newPlugin.boot()
+            if (newPlugin.controllers) Router.addControllerRoot(newPlugin.controllers)
+            if (newPlugin.middleware) Router.addMiddlewareRoot(newPlugin.middleware)
+            this._plugins.push(newPlugin)
+            console.log(`    ${display} Loaded`)
+          } catch (e) {
+            log.error(`Could not load the plugin '${plugin}': ${e.message}`)
+            console.log(`    ${display} Not Loaded`)
+            // throw e
+          }
+        }
+      }
       console.log('--- End Config Settings -----')
       console.log(' ')
       if (route) {
@@ -171,7 +177,7 @@ export class Server {
           await import('./routes')
           // Load the plugin routes
           for (let plugin of this._plugins) {
-            await import(plugin.routes)
+            if (plugin.routes) await import(plugin.routes)
           }
           // Get the longest route
           let longestRoute = Math.max(...Router.domains.map(d => d.routes.reduce((num, val) => {
@@ -366,9 +372,6 @@ export class Server {
       }
     }
 
-    // Execute the middleware termination commands
-    await MiddlewareManager.run(client.route, client, 'terminate')
-
     let headers: [string, string][] = []
 
     // Add the cookies to the header
@@ -393,11 +396,14 @@ export class Server {
     // Log the request
     log.access(client)
 
+    // Execute the middleware termination commands
+    await MiddlewareManager.run(client.route, client, 'terminate')
+
     // If the method type is of 'head' or 'options' no body should be sent
     // In this case we send the headers only and the body should not be sent
     if (['head', 'options'].includes(client.method)) {
       res.end()
-      client.session && await client.session.close()
+      // client.session && await client.session.close()
       return
     }
 
@@ -434,6 +440,6 @@ export class Server {
       res.end()
     }
 
-    client.session && await client.session.close()
+    // client.session && await client.session.close()
   }
 }

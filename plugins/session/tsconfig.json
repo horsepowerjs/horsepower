@@ -3,7 +3,7 @@
     "outDir": "lib",
     "declarationDir": "types"
   },
-  "extends": "../tsconfig.json",
+  "extends": "../../tsconfig.json",
   "include": [
     "src/**/*.ts"
   ]
