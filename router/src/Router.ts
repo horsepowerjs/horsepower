@@ -1,8 +1,7 @@
 import { UrlWithStringQuery } from 'url'
 import * as path from 'path'
 import { Route } from './Route'
-import { Middleware } from '@red5/middleware'
-import { Client } from '@red5/server'
+import { Middleware, Client } from '@red5/server'
 
 export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'any'
 
@@ -14,7 +13,7 @@ export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete'
 // }
 
 export interface RouterOptions {
-  middleware?: ({ new(): Middleware } | Middleware | string)[]
+  middleware?: ((new () => Middleware) | Middleware | string)[]
   name?: string
 }
 

@@ -9,7 +9,7 @@ const projects = {
   server: './server',
   storage: './storage',
   template: './template',
-  middleware: './middleware',
+  // middleware: './middleware',
   // Optional dependencies
   mysql: './mysql',
   session: './plugins/session',
@@ -17,7 +17,7 @@ const projects = {
 }
 
 const tasks = [
-  'router', 'middleware', 'template', 'storage', 'server',
+  'router', 'template', 'storage', 'server',
   // Optional dependencies
   'mysql', 'session', 'auth'
 ]
@@ -56,7 +56,7 @@ gulp.task('router', () => makeProject(path.join(__dirname, projects.router)))
 gulp.task('server', () => makeProject(path.join(__dirname, projects.server)))
 gulp.task('storage', () => makeProject(path.join(__dirname, projects.storage)))
 gulp.task('template', () => makeProject(path.join(__dirname, projects.template)))
-gulp.task('middleware', () => makeProject(path.join(__dirname, projects.middleware)))
+// gulp.task('middleware', () => makeProject(path.join(__dirname, projects.middleware)))
 // Optional dependencies
 gulp.task('mysql', () => makeProject(path.join(__dirname, projects.mysql)))
 gulp.task('session', () => makeProject(path.join(__dirname, projects.session)))
@@ -67,7 +67,7 @@ gulp.task('build:watch', gulp.series([...tasks, () => {
   gulp.watch('./server/src/**/*.ts', gulp.series('server'))
   gulp.watch('./storage/src/**/*.ts', gulp.series('storage'))
   gulp.watch('./template/src/**/*.ts', gulp.series('template'))
-  gulp.watch('./middleware/src/**/*.ts', gulp.series('middleware'))
+  // gulp.watch('./middleware/src/**/*.ts', gulp.series('middleware'))
   // Optional dependencies
   gulp.watch('./mysql/src/**/*.ts', gulp.series('mysql'))
   gulp.watch('./plugins/session/src/**/*.ts', gulp.series('session'))

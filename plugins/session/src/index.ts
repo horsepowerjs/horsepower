@@ -1,4 +1,4 @@
-import { CookieSerializeOptions } from 'cookie';
+import { CookieSerializeOptions } from 'cookie'
 import { Plugin } from '@red5/server'
 import * as path from 'path'
 
