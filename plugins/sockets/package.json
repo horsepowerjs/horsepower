@@ -1,0 +1,21 @@
+{
+    "name": "@red5/sockets",
+    "version": "1.0.0",
+    "description": "Web Sockets for the red5 http server.",
+    "main": "lib/index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "prepack": "rm -rf lib && rm -rf types && tsc -p ."
+    },
+    "types": "types/index.d.ts",
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@red5/server": "^1.0.0",
+        "uWebSockets.js": "github:uNetworking/uWebSockets.js#v15.11.0"
+    },
+    "files": [
+        "lib",
+        "types"
+    ]
+}
