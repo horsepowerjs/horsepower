@@ -1,5 +1,5 @@
 import { StorageSettings, Storage } from '@red5/storage'
-import { Client, Response, log, MiddlewareManager } from '.'
+import { Client, Response, log, MiddlewareManager } from '@red5/server'
 import { Router } from '@red5/router'
 
 import * as http from 'http'
@@ -233,6 +233,10 @@ export class Server {
     if (!this.app) return
     const urlInfo = url.parse('http://' + req.headers.host + (req.url || '/'))
     const client = new Client(req)
+    for (let plugin of this._plugins) {
+      plugin.request(client)
+      // if(plugin.property)client[plugin.property] =
+    }
     this._clients.push(client)
     // Get the body of the request
     const body = await new Promise<string>(resolve => {

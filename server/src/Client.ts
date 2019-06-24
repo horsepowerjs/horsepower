@@ -5,7 +5,7 @@ import { parse as parseCookie } from 'cookie'
 import { IncomingMessage, IncomingHttpHeaders } from 'http'
 
 import { RequestMethod, Route } from '@red5/router'
-import { Response } from '.'
+import { Response } from '@red5/server'
 import { Session } from '@red5/session'
 import { getConfig } from './helper'
 import { AppSettings } from './Server'
@@ -75,7 +75,7 @@ export class Client {
     this._req = req
     this._get = querystring.parse(parse(req.url || '').query || '')
     this.ajax = req.headers['x-requested-with'] == 'XMLHttpRequest'
-    this._response = new Response(this)
+    this._response = new Response(<any>this)
     this._headers = req.headers
     this._id = (Math.random() * 10e15).toString(36).replace(/\W/g, '')
     this._post = {}

@@ -1,10 +1,9 @@
 import { UrlWithStringQuery } from 'url'
 import * as path from 'path'
 import { Route } from './Route'
-import { Middleware } from '@red5/middleware'
-import { Client } from '@red5/server'
+import { Middleware, Client } from '@red5/server'
 
-export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'any'
+export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'any' | 'event'
 
 // declare interface Client { }
 
@@ -14,7 +13,7 @@ export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete'
 // }
 
 export interface RouterOptions {
-  middleware?: ({ new(): Middleware } | Middleware | string)[]
+  middleware?: ((new () => Middleware) | Middleware | string)[]
   name?: string
 }
 
@@ -483,6 +482,29 @@ export class Router {
   public static any(routePath: string | RegExp, options: RouterOptions, controller: RouteCallback): Route
   public static any(...args: any[]): Route {
     return this.createRoute('any', ...args)
+  }
+
+  /**
+   * For event based messages
+   *
+   * @static
+   * @param {(string | RegExp)} event The route path to watch
+   * @param {RouteCallback} controller The controller to use
+   * @returns {Route}
+   * @memberof Router
+   */
+  public static on(event: string | RegExp, controller: RouteCallback): Route
+  /**
+   * For event based messages
+   *
+   * @param {string} event The event to listen for
+   * @param {RouterOptions} options The options for the route
+   * @param {RouteCallback} controller The controller to use
+   * @memberof Router
+   */
+  public static on(event: string | RegExp, options: RouterOptions, controller: RouteCallback): Route
+  public static on(...args: any[]): Route {
+    return this.createRoute('event', ...args)
   }
 
   /**

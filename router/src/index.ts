@@ -3,7 +3,6 @@ import { Router } from './Router'
 export * from './Route'
 export * from './Router'
 
-
 export function route(name: string, options: {
   params?: { [key: string]: any },
   query?: { [key: string]: any }

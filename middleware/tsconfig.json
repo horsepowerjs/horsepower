@@ -4,6 +4,11 @@
     "declarationDir": "types"
   },
   "extends": "../tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "lib",
+    "types"
+  ],
   "include": [
     "src/**/*.ts"
   ]

@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "lib",
-    "declarationDir": "types",
-    "typeRoots": [
-      "../middleware/types",
-      "../node_modules/@types"
-    ]
+    "declarationDir": "types"
   },
   "extends": "../tsconfig.json",
   "include": [

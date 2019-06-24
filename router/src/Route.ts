@@ -1,7 +1,7 @@
 import { UrlWithStringQuery } from 'url'
 import * as path from 'path'
 import { RouterOptions, RequestMethod, Router } from './Router'
-import { Middleware } from '@red5/middleware'
+import { Middleware } from '@red5/server'
 
 export class Route {
 
@@ -71,7 +71,7 @@ export class Route {
     return this
   }
 
-  public middleware(...args: ({ new(): Middleware } | Middleware | string)[]) {
+  public middleware(...args: ((new () => Middleware) | Middleware | string)[]) {
     if (!this.routeOptions.middleware) this.routeOptions.middleware = []
     args.forEach(arg => {
       this.routeOptions.middleware && this.routeOptions.middleware.push(arg)

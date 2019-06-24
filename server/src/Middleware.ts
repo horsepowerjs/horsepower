@@ -1,6 +1,6 @@
-import { Client, Response, getConfig } from '.'
+import { Client, Response, getConfig } from '@red5/server'
 import { Route } from '@red5/router'
-import { Server } from './Server';
+import { Server } from './Server'
 
 declare type MiddlewareType = 'pre' | 'post' | 'terminate'
 
