@@ -10,8 +10,8 @@
     "types": "types/index.d.ts",
     "author": "",
     "dependencies": {
-        "@red5/server": "^1.0.0",
-        "mysql": "^2.16.0"
+        "@red5/server": "^1.0.6",
+        "mysql": "^2.17.1"
     },
     "license": "ISC",
     "files": [
@@ -19,6 +19,6 @@
         "types"
     ],
     "devDependencies": {
-        "@types/mysql": "^2.15.5"
+        "@types/mysql": "^2.15.6"
     }
 }
