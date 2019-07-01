@@ -1,6 +1,6 @@
 {
     "name": "@red5/template",
-    "version": "1.0.4",
+    "version": "1.0.6",
     "description": "Template manager for the red5 http server.",
     "main": "lib/index.js",
     "scripts": {

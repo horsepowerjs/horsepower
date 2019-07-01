@@ -5,7 +5,7 @@ import { parse as parseCookie } from 'cookie'
 import { IncomingMessage, IncomingHttpHeaders } from 'http'
 
 import { RequestMethod, Route } from '@red5/router'
-import { Response } from '@red5/server'
+import { Response } from '.'
 import { Session } from '@red5/session'
 import { getConfig } from './helper'
 import { AppSettings } from './Server'

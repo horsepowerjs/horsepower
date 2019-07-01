@@ -1,4 +1,4 @@
-import { Client, Response, getConfig } from '@red5/server'
+import { Client, Response, getConfig } from '.'
 import { Route } from '@red5/router'
 import { Server } from './Server'
 

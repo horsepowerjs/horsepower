@@ -14,7 +14,7 @@ export interface Template {
 
 export default async function extend(tpl: Template) {
   let document = tpl.document
-  let item = document.querySelector(':scope > extends')
+  let item = document.documentElement.querySelector(':scope extends')
   if (!item) return tpl
   let inclFileName = item.getAttribute('file')
   if (inclFileName && item.parentElement) {
