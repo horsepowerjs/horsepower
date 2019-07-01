@@ -91,6 +91,9 @@ export class Router {
               if (module && module.constructor && module.default) {
                 callback = new module.default()[method]
                 break
+              } else if (module && module.constructor) {
+                callback = new module()[method]
+                break
               } else {
                 callback = module[method]
                 break

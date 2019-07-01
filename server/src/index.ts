@@ -12,6 +12,7 @@ export * from './Client'
 export * from './Response'
 export * from './Event'
 export * from './Plugin'
+export * from './Command'
 export * from './Middleware'
 
 export function start() {
