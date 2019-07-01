@@ -22,7 +22,7 @@
         "@types/cookie": "^0.3.3",
         "@types/dotenv": "^4.0.3",
         "@types/mime-types": "^2.1.0",
-        "@types/shelljs": "^0.7.9"
+        "@types/shelljs": "^0.8.5"
     },
     "types": "types/index.d.ts",
     "author": "Ryan Naddy",
