@@ -1,6 +1,6 @@
 {
     "name": "@red5/auth",
-    "version": "1.0.2",
+    "version": "1.0.0",
     "description": "Authorization for the red5 http server.",
     "main": "lib/index.js",
     "scripts": {

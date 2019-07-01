@@ -1,4 +1,4 @@
-import { Client } from '@red5/server'
+import { Client } from '.'
 
 export abstract class Plugin {
   public abstract boot(): void
