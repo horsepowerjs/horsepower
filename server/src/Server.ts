@@ -279,10 +279,10 @@ export class Server {
         if (!await this._runMiddleware(routeInfo, client, req, res, 'post')) return
       }
 
-      !resp && await this.getErrorPage(client, 400)
+      !resp && await this.getErrorPage(client, 400, { message: new Error().stack })
       await this.send(client, req, res)
     } catch (e) {
-      await this.getErrorPage(client, 500)
+      await this.getErrorPage(client, 500, { message: new Error().stack })
       await this.send(client, req, res)
       log.error(e, client)
     }
@@ -295,7 +295,7 @@ export class Server {
   private static async _runMiddleware(routeInfo, client: Client, req: http.IncomingMessage, res: http.ServerResponse, type: 'post' | 'pre') {
     let result = await MiddlewareManager.run(routeInfo.route, client, type)
     if (result !== true && !(result instanceof Response)) {
-      await this.getErrorPage(client, 400)
+      await this.getErrorPage(client, 400, { message: new Error().stack })
       this.send(client, req, res)
       return false
     }

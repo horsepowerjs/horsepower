@@ -1,7 +1,7 @@
 import { UrlWithStringQuery } from 'url'
 import * as path from 'path'
 import { Route } from './Route'
-import { Middleware, Client } from '@red5/server'
+import { Middleware, Client, log } from '@red5/server'
 
 export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'any' | 'event'
 
@@ -80,31 +80,36 @@ export class Router {
 
     // If the callback is a string load the module from the controllers
     // Then get the function in the file
-    try {
-      if (theRoute && typeof theRoute.callback == 'string') {
-        let [controller, method] = theRoute.callback.split('@')
-        if (!method) method = 'main'
-        if (controller && method && controller.length > 0 && method.length > 0) {
-          for (let root of this.controllerRoots) {
-            try {
-              let module = await import(path.join(root, controller))
-              if (module && module.constructor && module.default) {
-                callback = new module.default()[method]
-                break
-              } else if (module && module.constructor) {
-                callback = new module()[method]
-                break
-              } else {
-                callback = module[method]
-                break
-              }
-            } catch (e) { }
+    // try {
+    if (theRoute && typeof theRoute.callback == 'string') {
+      let [controller, method] = theRoute.callback.split('@')
+      if (!method) method = 'main'
+      if (controller && method && controller.length > 0 && method.length > 0) {
+        for (let root of this.controllerRoots) {
+          try {
+            let module = await import(path.join(root, controller))
+            if (module && module.constructor && module.default) {
+              callback = new module.default()[method]
+              break
+            } else if (module && module.constructor) {
+              callback = new module()[method]
+              break
+            } else {
+              callback = module[method]
+              break
+            }
+          } catch (e) {
+            log.error(e)
+            throw e
           }
         }
-      } else if (theRoute && typeof theRoute.callback == 'function') {
-        callback = theRoute.callback
       }
-    } catch (e) { }
+    } else if (theRoute && typeof theRoute.callback == 'function') {
+      callback = theRoute.callback
+    }
+    // } catch (e) {
+    //   throw e
+    // }
     // If a valid route was found run the callback, otherwise send a 404
     return { route: theRoute, callback: callback || null }
     // return callback ? await callback(client) : null
