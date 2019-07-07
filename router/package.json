@@ -1,6 +1,6 @@
 {
     "name": "@red5/router",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "Router for the red5 http server.",
     "main": "lib/index.js",
     "scripts": {
@@ -11,7 +11,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
-        "@red5/server": "^1.0.0"
+        "@red5/server": "^1.0.6"
     },
     "files": [
         "lib",

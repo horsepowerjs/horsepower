@@ -3,25 +3,28 @@
     "version": "1.0.6",
     "description": "The master server for the red5 http server.",
     "main": "lib/index.js",
+    "homepage": "https://red5js.com",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "prepack": "rm -rf lib && rm -rf types && tsc -p ."
     },
     "dependencies": {
         "@red5/router": "^1.0.0",
-        "@red5/session": "^1.0.0",
-        "@red5/storage": "^1.0.1",
-        "@red5/template": "^1.0.0",
+        "@red5/session": "^1.0.5",
+        "@red5/storage": "^1.0.4",
+        "@red5/template": "^1.0.6",
+        "@types/command-line-args": "^5.0.0",
+        "command-line-args": "^5.1.1",
         "cookie": "^0.3.1",
         "dotenv": "^5.0.1",
-        "mime-types": "^2.1.20",
+        "mime-types": "^2.1.24",
         "shelljs": "^0.8.3"
     },
     "devDependencies": {
+        "@types/cookie": "^0.3.3",
         "@types/dotenv": "^4.0.3",
-        "@types/cookie": "^0.3.2",
         "@types/mime-types": "^2.1.0",
-        "@types/shelljs": "^0.7.9"
+        "@types/shelljs": "^0.8.5"
     },
     "types": "types/index.d.ts",
     "author": "Ryan Naddy",
