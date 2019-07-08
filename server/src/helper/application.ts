@@ -1,4 +1,5 @@
 import * as path from 'path'
+import * as fs from 'fs'
 
 /**
  * Get the path to the storage folder
@@ -93,6 +94,20 @@ export function getConfig<T>(childPath: string, main: boolean = false) {
     // log.warn(`Could not find config "${location}"`)
     return undefined
   }
+}
+
+export function clearConfigCache(childPath: string) {
+  try {
+    delete require.cache[require.resolve(configPath(childPath))]
+  } catch (e) { }
+}
+
+export function clearCachedConfigs() {
+  let root = path.join(applicationRoot(), 'config')
+  fs.readdir(root, (err, files) => {
+    if (err) return
+    files.forEach(file => clearConfigCache(file))
+  })
 }
 
 /**
