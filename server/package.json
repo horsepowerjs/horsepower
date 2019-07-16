@@ -1,6 +1,6 @@
 {
     "name": "@red5/server",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "description": "The master server for the red5 http server.",
     "main": "lib/index.js",
     "homepage": "https://red5js.com",
@@ -9,7 +9,7 @@
         "prepack": "rm -rf lib && rm -rf types && tsc -p ."
     },
     "dependencies": {
-        "@red5/router": "^1.0.0",
+        "@red5/router": "^1.0.4",
         "@red5/session": "^1.0.5",
         "@red5/storage": "^1.0.4",
         "@red5/template": "^1.0.6",
