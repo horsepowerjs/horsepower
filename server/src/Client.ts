@@ -200,6 +200,9 @@ export class Client {
       get postAll(): object {
         return Object.freeze($this._post)
       },
+      get requestAll(): object {
+        return Object.freeze(Object.assign({}, $this._post, $this._get))
+      },
       /**
        * Gets the file information from a request
        *
