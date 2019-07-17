@@ -590,27 +590,27 @@ export class Router {
     // Get the route path
     let routePath = args.length > 1 ? args[0] : '/'
     // Create the new route
-    let r: Route
+    let route: Route
     if (routePath instanceof RegExp) {
-      r = new Route(routePath, method, callback, this.currentDomain)
+      route = new Route(routePath, method, callback, this.currentDomain)
     } else {
       let pathAlias = path.join(...this.groupPath, routePath).replace(/\\/g, '/')
       let isAlreadyRoute = !!Router.findByAlias(method, pathAlias)
       if (isAlreadyRoute) throw new Error(`Path already exists: "${String(pathAlias)}"`)
-      r = new Route(pathAlias, method, callback, this.currentDomain)
+      route = new Route(pathAlias, method, callback, this.currentDomain)
     }
-    r.setGroupOptions(Object.assign([], this.groupOptions))
-    args.length == 3 && r.setRouteOptions(args[1])
+    route.setGroupOptions(Object.assign([], this.groupOptions))
+    args.length == 3 && route.setRouteOptions(args[1])
 
     // Add the route to the list of routes
     // this._routes.push(r)
     let domain = this._domains.find(i => i.domain == this.currentDomain)
     if (!domain) {
-      this._domains.push({ domain: this.currentDomain, routes: [r] })
+      this._domains.push({ domain: this.currentDomain, routes: [route] })
     } else {
-      domain.routes.push(r)
+      domain.routes.push(route)
     }
-    return r
+    return route
   }
 
   public static findDomain(domainName: string | RegExp) {

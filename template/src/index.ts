@@ -14,6 +14,8 @@ export interface TemplateData {
 
 export type Nullable<T> = T | null | undefined
 
+export * from './classes'
+
 export class Red5Template {
 
   private templateData: TemplateData
