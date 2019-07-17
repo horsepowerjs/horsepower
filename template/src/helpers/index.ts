@@ -1,4 +1,5 @@
 import { readFile } from 'fs'
+import * as vm from 'vm'
 import { JSDOM } from 'jsdom'
 
 // The template directives
@@ -35,18 +36,19 @@ export function getData(text: string, data: TemplateData, scope?: string) {
       (data.scopes.find(i => i.reference == scope) || { data: {} }).data : {}
   }
   // Call function
-  if (text.includes('(') && text.includes(')')) {
-    let matches = text.match(/(.+)\((.+)\)/)
-    if (matches && matches[1]) {
-      let params = matches[2] && (text.match(/(["'])(?:(?=(\\?))\2.)*?\1/g) as RegExpMatchArray)
-        .map(i => i.replace(/^('|")|('|")$/g, ''))
-      // let params = matches[2] && matches[2].trim().replace(/^('|")|('|")$/g, '').split(',') || []
-      let func = find(matches[1], dataToSearch)
-      if (typeof func == 'function') {
-        return func(...params)
-      }
-    }
-  }
+  // if (text.includes('(') && text.includes(')')) {
+  // let matches = text.match(/(.+)\((.*)\)/)
+  // if (matches && matches[1]) {
+  // let params = matches[2] && (text.match(/(["'])(?:(?=(\\?))\2.)*?\1/g) as RegExpMatchArray)
+  //   .map(i => i.replace(/^('|")|('|")$/g, ''))
+  // let params = matches[2] && matches[2].trim().replace(/^('|")|('|")$/g, '').split(',') || []
+  // let func = find(matches[1], dataToSearch)
+  // if (typeof func == 'function') {
+  let context = vm.createContext(dataToSearch)
+  return vm.runInContext(text, context)
+  // }
+  // }
+  // }
   return find(text.replace(/^\$/, ''), dataToSearch)
   // return find(text.replace(/^\{\{|\}\}$/g, ''), dataToSearch)
 }
@@ -140,9 +142,7 @@ export function dropFirst(text: string) {
 export function find(query: string, data: object | any[]): any | undefined {
   const keys = query.split('.')
   const lastKey = keys.pop() as string
-  const lastObj = keys.reduce<any>((obj, val) => {
-    return obj ? obj[val] : obj
-  }, data)
+  const lastObj = keys.reduce<any>((obj, val) => obj ? obj[val] : obj, data)
 
   const ret = lastObj[lastKey]
   return typeof ret === 'function' ? ret.bind(lastObj) : ret
