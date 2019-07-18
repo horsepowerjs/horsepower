@@ -20,38 +20,38 @@ import { Client } from '@red5/server';
 export * from './files'
 export * from './extend'
 
-/**
- * Gets the data that will be searched
- *
- * @export
- * @param {string} text The variable name like: "$example"
- * @param {TemplateData} data The template data
- * @param {string} [scope] The optional scope
- * @returns
- */
-export function getData(text: string, data: TemplateData, scope?: string) {
-  let dataToSearch = data.originalData
-  if (typeof scope == 'string') {
-    dataToSearch = data.scopes && data.scopes.length > 0 ?
-      (data.scopes.find(i => i.reference == scope) || { data: {} }).data : {}
-  }
-  // Call function
-  // if (text.includes('(') && text.includes(')')) {
-  // let matches = text.match(/(.+)\((.*)\)/)
-  // if (matches && matches[1]) {
-  // let params = matches[2] && (text.match(/(["'])(?:(?=(\\?))\2.)*?\1/g) as RegExpMatchArray)
-  //   .map(i => i.replace(/^('|")|('|")$/g, ''))
-  // let params = matches[2] && matches[2].trim().replace(/^('|")|('|")$/g, '').split(',') || []
-  // let func = find(matches[1], dataToSearch)
-  // if (typeof func == 'function') {
-  let context = vm.createContext(dataToSearch)
-  return vm.runInContext(text, context)
-  // }
-  // }
-  // }
-  return find(text.replace(/^\$/, ''), dataToSearch)
-  // return find(text.replace(/^\{\{|\}\}$/g, ''), dataToSearch)
-}
+// /**
+//  * Gets the data that will be searched
+//  *
+//  * @export
+//  * @param {string} text The variable name like: "$example"
+//  * @param {TemplateData} data The template data
+//  * @param {string} [scope] The optional scope
+//  * @returns
+//  */
+// export function getData(text: string, data: TemplateData, context: vm.Context, scope?: string) {
+//   // let dataToSearch = data.originalData
+//   // if (typeof scope == 'string') {
+//   //   dataToSearch = data.scopes && data.scopes.length > 0 ?
+//   //     (data.scopes.find(i => i.reference == scope) || { data: {} }).data : {}
+//   // }
+//   // Call function
+//   // if (text.includes('(') && text.includes(')')) {
+//   // let matches = text.match(/(.+)\((.*)\)/)
+//   // if (matches && matches[1]) {
+//   // let params = matches[2] && (text.match(/(["'])(?:(?=(\\?))\2.)*?\1/g) as RegExpMatchArray)
+//   //   .map(i => i.replace(/^('|")|('|")$/g, ''))
+//   // let params = matches[2] && matches[2].trim().replace(/^('|")|('|")$/g, '').split(',') || []
+//   // let func = find(matches[1], dataToSearch)
+//   // if (typeof func == 'function') {
+//   // let context = vm.createContext(dataToSearch)
+//   // return vm.runInContext(text, context)
+//   // }
+//   // }
+//   // }
+//   // return find(text.replace(/^\$/, ''), dataToSearch)
+//   // return find(text.replace(/^\{\{|\}\}$/g, ''), dataToSearch)
+// }
 
 /**
  * Gets an array of variables within a string

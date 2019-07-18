@@ -1,25 +1,53 @@
-interface FormOpen {
-  [key: string]: string | number | undefined
-  method?: 'get' | 'post'
-  action?: string
-}
+import { Session } from '@red5/session'
 
 interface FormAttributes {
+  [key: string]: string | number | boolean | undefined
+}
 
+interface FormOpen extends FormAttributes {
+  files: boolean
+}
+
+interface Data {
+  get: object;
+  post: object;
+  request: object;
+  session: Session;
+  params: {
+    [key: string]: string;
+  };
 }
 
 export class Form {
+
+  private readonly data: Data
+
+  public constructor(data: Data) {
+    this.data = data
+  }
 
   /**
    * Opens a new form
    *
    * @static
-   * @param {FormOpen} [options]
+   * @param {FormOpen} [attributes]
    * @returns
    * @memberof Form
    */
-  public static open(options?: FormOpen) {
-    return this._openTag('form', options)
+  public open(action?: string, isPost?: boolean, attributes?: FormOpen): string
+  public open(action?: string, attributes?: FormOpen): string
+  public open(...args: any[]) {
+    let action = args[0]
+    let isPost = args.length == 3 ? args[1] : true
+    let attributes = args.length == 3 ? args[2] : args[1]
+    let str = Form._openTag('form', Object.assign({}, attributes, {
+      action: typeof action == 'string' && action,
+      method: isPost && 'post',
+      enctype: attributes && attributes.files ? 'multipart/form-data' : false
+    }), undefined, ['files'])
+    let token = ''
+    if (isPost) token = this.token()
+    return str + token
   }
 
   /**
@@ -29,12 +57,15 @@ export class Form {
    * @returns
    * @memberof Form
    */
-  public static close() {
-    return this._closeTag('form')
+  public close() {
+    return Form._closeTag('form')
   }
 
-  public static label(text: string, attributes?: FormAttributes) {
-    return this._openTag('label', Object.assign({}, attributes), text)
+  public token() {
+    return this.data.session ? this.hidden('_token', this.data.session.csrf) : ''
+  }
+  public label(text: string, attributes?: FormAttributes) {
+    return Form._openTag('label', Object.assign({}, attributes), text)
   }
 
   /**
@@ -47,114 +78,114 @@ export class Form {
    * @returns
    * @memberof Form
    */
-  public static text(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public text(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'text'
     }))
   }
 
-  public static search(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public search(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'search'
     }))
   }
 
-  public static email(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public email(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'email'
     }))
   }
 
-  public static phone(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public phone(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'tel'
     }))
   }
 
-  public static url(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public url(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'url'
     }))
   }
 
-  public static week(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public week(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'week'
     }))
   }
 
-  public static password(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public password(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'password'
     }))
   }
 
-  public static number(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public number(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'number'
     }))
   }
 
-  public static date(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public date(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'date'
     }))
   }
 
-  public static time(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public time(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'time'
     }))
   }
 
-  public static datetime(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public datetime(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'datetime-local'
     }))
   }
 
-  public static color(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public color(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'color'
     }))
   }
 
-  public static hidden(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public hidden(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'hidden'
     }))
   }
 
-  public static image(name: string, src: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public image(name: string, src: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, src,
       type: 'image'
     }))
   }
 
-  public static range(name: string, initial?: number, min?: number, max?: number, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public range(name: string, initial?: number, min?: number, max?: number, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'range',
       min, max
     }))
   }
 
-  public static month(name: string, initial?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public month(name: string, initial?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, value: initial,
       type: 'month'
     }))
@@ -170,8 +201,8 @@ export class Form {
    * @returns
    * @memberof Form
    */
-  public static textarea(name: string, initial: string = '', attributes?: FormAttributes) {
-    return this._openTag('textarea', Object.assign({}, attributes, {
+  public textarea(name: string, initial: string = '', attributes?: FormAttributes) {
+    return Form._openTag('textarea', Object.assign({}, attributes, {
       name, value: initial,
     }), initial)
   }
@@ -186,15 +217,15 @@ export class Form {
    * @returns
    * @memberof Form
    */
-  public static check(name: string, value: string, text: string, enabled?: boolean, attributes?: FormAttributes): string
-  public static check(name: string, value: string, enabled?: boolean, attributes?: FormAttributes): string
-  public static check(...args: any[]) {
+  public check(name: string, value: string, text: string, enabled?: boolean, attributes?: FormAttributes): string
+  public check(name: string, value: string, enabled?: boolean, attributes?: FormAttributes): string
+  public check(...args: any[]) {
     let name = args[0] as string
     let value = args[1] as string
     let text = (typeof args[2] == 'string' ? args[2] : '') as string
     let enabled = (typeof args[2] == 'boolean' ? args[2] : false) as boolean
     let attributes = (args.length == 5 ? args[4] : args[3]) as FormAttributes
-    let tag = this._openTag('input', Object.assign({}, attributes, {
+    let tag = Form._openTag('input', Object.assign({}, attributes, {
       name, value,
       type: 'checkbox',
       checked: enabled
@@ -203,15 +234,15 @@ export class Form {
     return tag
   }
 
-  public static radio(name: string, value: string, text: string, enabled?: boolean, attributes?: FormAttributes): string
-  public static radio(name: string, value: string, enabled?: boolean, attributes?: FormAttributes): string
-  public static radio(...args: any[]) {
+  public radio(name: string, value: string, text: string, enabled?: boolean, attributes?: FormAttributes): string
+  public radio(name: string, value: string, enabled?: boolean, attributes?: FormAttributes): string
+  public radio(...args: any[]) {
     let name = args[0] as string
     let value = args[1] as string
     let text = (typeof args[2] == 'string' ? args[2] : '') as string
     let enabled = (typeof args[2] == 'boolean' ? args[2] : false) as boolean
     let attributes = (args.length == 5 ? args[4] : args[3]) as FormAttributes
-    let tag = this._openTag('input', Object.assign({}, attributes, {
+    let tag = Form._openTag('input', Object.assign({}, attributes, {
       name, value,
       type: 'radio',
       checked: enabled
@@ -220,50 +251,51 @@ export class Form {
     return tag
   }
 
-  public static radios(name: string, items: { value: string, text: string, enabled: boolean, attributes?: FormAttributes }[]) {
+  public radios(name: string, items: { value: string, text: string, enabled: boolean, attributes?: FormAttributes }[]) {
     return items.map(itm => this.radio(name || '', itm.value || '', itm.text || '', !!itm.enabled, itm.attributes || {})).join('')
   }
 
-  public static select(name: string, value: any[] | object, selected: any, attributes?: FormAttributes) {
-    let select = this._openTag('select', Object.assign({}, attributes, { name }))
+  public select(name: string, value: any[] | object, selected: any, attributes?: FormAttributes) {
+    let select = Form._openTag('select', Object.assign({}, attributes, { name }))
     select += Object.entries(value).map(([key, val]) => {
       if (Array.isArray(value)) {
-        return this._openTag('option', Object.assign({}, { value: val, selected: selected == val }), val)
+        return Form._openTag('option', Object.assign({}, { value: val, selected: selected == val }), val)
       } else if (typeof value == 'object') {
-        return this._openTag('option', Object.assign({}, { value: key, selected: selected == key }), val)
+        return Form._openTag('option', Object.assign({}, { value: key, selected: selected == key }), val)
       }
     }).join('')
-    select += this._closeTag('select')
+    select += Form._closeTag('select')
     return select
   }
 
-  public static button(name: string, value: string, attributes?: FormAttributes) {
-    return this._openTag('button', Object.assign({}, attributes, {
+  public button(name: string, value: string, attributes?: FormAttributes) {
+    return Form._openTag('button', Object.assign({}, attributes, {
       type: 'button', name
     }), value)
   }
 
-  public static submit(name: string, value?: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public submit(name: string, value?: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       type: 'submit', name, value
     }))
   }
 
-  public static reset(name: string, value: string, attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public reset(name: string, value: string, attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       type: 'reset', name, value
     }))
   }
 
-  public static file(name: string, accept: string = '*', attributes?: FormAttributes) {
-    return this._openTag('input', Object.assign({}, attributes, {
+  public file(name: string, accept: string = '*', attributes?: FormAttributes) {
+    return Form._openTag('input', Object.assign({}, attributes, {
       name, type: 'file', accept
     }))
   }
 
-  private static _openTag(tag: string, options?: object, text?: string) {
+  private static _openTag(tag: string, options?: object, text?: string, ignored?: string[]) {
     let result = `<${tag}` + (typeof options == 'object' && ' ' + Object.entries(options)
       .filter(([key, value]) => {
+        if (ignored && ignored.includes(key)) return false
         if (typeof value == 'boolean' && value === true) return true
         else if (typeof value != 'boolean') return true
         return false
@@ -276,7 +308,7 @@ export class Form {
       })
       .join(' ')) + '>'
     // result += typeof text == 'string' && text || ''
-    result += typeof text == 'string' && (text + this._closeTag(tag)) || ''
+    result += typeof text == 'string' && (text + Form._closeTag(tag)) || ''
     return result
   }
 

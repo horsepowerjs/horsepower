@@ -1,8 +1,10 @@
-import { Template, parseFile, step, getData } from './helpers'
+import { Template, parseFile, step/* , getData */ } from './helpers'
 import extend from './helpers/extend'
 import { getMixins } from './helpers/mixin'
 import { minify, Options } from 'html-minifier'
-import { Client } from '@red5/server';
+import { Client } from '@red5/server'
+import * as vm from 'vm'
+import { Form } from './classes'
 
 export interface TemplateData {
   originalData: { [key: string]: any }
@@ -13,8 +15,6 @@ export interface TemplateData {
 }
 
 export type Nullable<T> = T | null | undefined
-
-export * from './classes'
 
 export class Red5Template {
 
@@ -38,9 +38,10 @@ export class Red5Template {
     let mixins = getMixins(rootTpl)
     await step(this.client, rootTpl, rootTpl.document, this.templateData, mixins)
     if (rootTpl.document.documentElement) {
+      let context = vm.createContext(this.templateData.originalData)
       rootTpl.document.documentElement.innerHTML =
         rootTpl.document.documentElement.innerHTML
-          .replace(/\{\{(.+?)\}\}/g, (full, val) => getData(val, this.templateData))
+          .replace(/\{\{(.+?)\}\}/gms, (full, val) => vm.runInContext(val, context)) //getData(val, this.templateData))
     }
     return rootTpl
   }
@@ -57,6 +58,7 @@ export class Red5Template {
    */
   public static async render(client: Client, data: object = {}, minifyOptions?: Options): Promise<string> {
     try {
+      data = Object.assign(data, { Form: new Form(data) })
       let file = client.response.templatePath
       if (!file) return ''
       let templateData: TemplateData = { originalData: {}, scopes: [] }

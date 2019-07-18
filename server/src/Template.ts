@@ -2,8 +2,9 @@ import * as path from 'path'
 import * as fs from 'fs'
 import * as helpers from './helper'
 import { Client } from '@red5/server'
-import { Red5Template, Form } from '@red5/template'
+import { Red5Template } from '@red5/template'
 import { Storage } from '@red5/storage'
+import { Session } from '@red5/session'
 
 export interface pug {
   renderFile(path: string, options?: {}, callback?: Function): string
@@ -33,15 +34,12 @@ export class Template {
         get: client.data.getAll,
         post: client.data.postAll,
         request: client.data.requestAll,
-        session: client.session && client.session.items,
+        session: client.session as Session,
         params: client.route.params
       })
       let file = path.join(this._root, filePath)
       // Render red5 files
       if (filePath.endsWith('.mix')) {
-        options = Object.assign(options, {
-          Form
-        })
         html = await Red5Template.render(client, options)
       }
       // Render pug files

@@ -94,8 +94,10 @@ export class Client {
    */
   public async init() {
     try {
-      if (!this.session)
-        this.session = await new Promise(r => import('@red5/session').then(v => r(new v.Session(<any>this))))
+      if (!this.session && require.resolve('@red5/session')) {
+        let sess = await import('@red5/session')
+        this.session = new sess.Session(this)
+      }
     } catch (e) { }
   }
 

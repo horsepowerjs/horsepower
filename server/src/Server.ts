@@ -400,9 +400,6 @@ export class Server {
     // Log the request
     log.access(client)
 
-    // Execute the middleware termination commands
-    await MiddlewareManager.run(client.route, client, 'terminate')
-
     // If the method type is of 'head' or 'options' no body should be sent
     // In this case we send the headers only and the body should not be sent
     if (['head', 'options'].includes(client.method)) {
@@ -443,6 +440,9 @@ export class Server {
       res.write(responseBody)
       res.end()
     }
+
+    // Execute the middleware termination commands
+    await MiddlewareManager.run(client.route, client, 'terminate')
 
     // client.session && await client.session.close()
   }

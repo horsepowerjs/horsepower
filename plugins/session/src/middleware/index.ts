@@ -7,7 +7,9 @@ export class StartSession implements Middleware {
     let cfg = getConfig('session') as SessionSettings
     let cookie: CookieSerializeOptions = { path: '/', expires: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)) }
     if (cfg && cfg.cookie) cookie = Object.assign(cookie, cfg.cookie)
-    client && client.session && await client.session.start(cookie)
+    if (client && client.session) {
+      await client.session.start(cookie)
+    }
     return true
   }
 

@@ -1,7 +1,6 @@
 import { Router } from '@red5/router'
 
 export function route(name: string, parameters?: { [key: string]: string | number }) {
-  console.log('name', name)
   let route = Router.findByName(name)
   if (!route) throw new Error('Route name not found')
   let path = route && route.pathAlias || '/'

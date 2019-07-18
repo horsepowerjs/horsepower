@@ -23,7 +23,7 @@ export interface SessionRecord {
   creation: Date | undefined | null
   expires: Date | undefined | null
   csrf: string
-  cookie: CookieSerializeOptions & { expires?: Date | number | undefined }
+  cookie: CookieSerializeOptions & { expires?: Date | number | undefined } & object
 }
 
 export class Session {
