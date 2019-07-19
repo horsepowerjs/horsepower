@@ -17,6 +17,8 @@ NC='\033[0m'
 SCRIPT="$(readlink -f "$0")"
 SCRIPT_DIR="$(dirname "$SCRIPT")"
 cd $SCRIPT_DIR
+cd ..
+ROOT=$SCRIPT_DIR/..
 
 printf "${CYAN}Removing global @red5 packages${NC}\n"
 # npm rm -grf @red5/middleware &
@@ -58,7 +60,7 @@ npm link ./plugins/sockets
 # These dependencies should be the same dependencies
 # that are found in the modules "package.json"
 printf "${CYAN}Linking the dependencies${NC}\n"
-cd $SCRIPT_DIR/server
+cd $ROOT/server
 npm link @red5/router
 npm link @red5/session
 npm link @red5/storage
@@ -73,32 +75,27 @@ npm link @red5/mysql
 npm link @red5/auth
 npm link @red5/sockets
 
-# cd $SCRIPT_DIR/middleware
-# npm link @red5/server
-# npm link @red5/router
-# npm link @red5/session
-
-cd $SCRIPT_DIR/mysql
+cd $ROOT/mysql
 npm link @red5/server
 
-cd $SCRIPT_DIR/router
+cd $ROOT/router
 # npm link @red5/middleware
 npm link @red5/server
 
-cd $SCRIPT_DIR/template
+cd $ROOT/template
 npm link @red5/storage
 
-cd $SCRIPT_DIR/plugins/session
+cd $ROOT/plugins/session
 npm link @red5/server
 npm link @red5/storage
 
-cd $SCRIPT_DIR/plugins/auth
+cd $ROOT/plugins/auth
 npm link @red5/mysql
 npm link @red5/router
 npm link @red5/server
 npm link @red5/session
 
-cd $SCRIPT_DIR/plugins/sockets
+cd $ROOT/plugins/sockets
 npm link @red5/server
 
 # printf "${CYAN}Building packages${NC}\n"

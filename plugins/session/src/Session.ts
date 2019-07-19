@@ -38,7 +38,15 @@ export class Session {
   public get csrf() { return this._record.csrf || '' }
   public get id() { return this._record.id || '' }
   public get created() { return this._record.creation }
-  public get items() { return Object.assign({}, this._record.items, this._record.flash) }
+  public get items() {
+    return Object.assign({}, this._record.items.reduce((acc, val) => {
+      acc[val.key] = val.value
+      return acc
+    }, {}), this._record.flash.reduce((acc, val) => {
+      acc[val.key] = val.value
+      return acc
+    }, {}))
+  }
 
   public constructor(private client: Client) {
     this.client.session = <any>this
@@ -46,6 +54,13 @@ export class Session {
     let store = getConfig<StorageSettings>('storage')
     this._store = app.session && app.session.store ? app.session.store : 'file'
     this.store = store && store.disks && store.disks.session ? Storage.mount('session') : Storage.mount('tmp')
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof target[prop] != 'function' && target.items[prop] ?
+          target.items[prop] :
+          Reflect.get(target, prop, receiver)
+      }
+    })
   }
 
   /**

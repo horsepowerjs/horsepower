@@ -74,13 +74,13 @@ export class Form {
   public label(text: string, link: string, attributes?: FormAttributes): string
   public label(text: string, attributes?: FormAttributes): string
   public label(...args: (string | FormAttributes | undefined)[]) {
-    let text = args[0] as string
-    let link = typeof args[1] == 'string' ? args[1] : ''
+    let text = (typeof args[0] == 'string' ? args[0] : '') as string
+    let link = (typeof args[1] == 'string' ? args[1] : '') as string
     let attributes =
       args.length == 3 ? args[2] :
         typeof args[1] == 'string' ? args[2] : args[1]
     return this._openTag('label', Object.assign({}, attributes, {
-      for: link
+      for: link.length > 0 ? link : false
     }), text)
   }
 

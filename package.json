@@ -4,7 +4,11 @@
     "description": "",
     "main": "index.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "link": "sh ./scripts/link.sh",
+        "publish": "sh ./scripts/publish.sh",
+        "unlink": "sh ./scripts/unlink.sh",
+        "update": "sh ./scripts/update.sh",
+        "watch": "gulp build:watch"
     },
     "author": "",
     "license": "ISC",
