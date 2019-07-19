@@ -4,7 +4,7 @@ import { getMixins } from './helpers/mixin'
 import { minify, Options } from 'html-minifier'
 import { Client } from '@red5/server'
 import * as vm from 'vm'
-import { Form } from './classes'
+import { Form, Data } from './classes'
 
 export interface TemplateData {
   originalData: { [key: string]: any }
@@ -58,7 +58,7 @@ export class Red5Template {
    */
   public static async render(client: Client, data: object = {}, minifyOptions?: Options): Promise<string> {
     try {
-      data = Object.assign(data, { Form: new Form(data) })
+      data = Object.assign(data, { Form: new Form(data as Data) })
       let file = client.response.templatePath
       if (!file) return ''
       let templateData: TemplateData = { originalData: {}, scopes: [] }
