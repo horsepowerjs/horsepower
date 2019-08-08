@@ -1,8 +1,10 @@
-import { Client, Response, getConfig } from '@red5/server'
+import { Client, Response, getConfig } from '.'
 import { Route } from '@red5/router'
 import { Server } from './Server'
 
 declare type MiddlewareType = 'pre' | 'post' | 'terminate'
+
+declare type MiddlewareRunType = (new () => Middleware) | Middleware | string
 
 declare interface MiddlewareSettings {
   namedMiddleware: { [key: string]: Middleware }
@@ -43,16 +45,16 @@ export class MiddlewareManager {
         if (!c.middleware) continue
         let result
         switch (type) {
-          case 'pre': result = await this._runPreMiddleware(c.middleware, client); break;
-          case 'post': result = await this._runPostMiddleware(c.middleware, client); break;
-          case 'terminate': result = await this._runTerminateMiddleware(c.middleware, client); break;
+          case 'pre': result = await this._runPreMiddleware(c.middleware as MiddlewareRunType[], client); break;
+          case 'post': result = await this._runPostMiddleware(c.middleware as MiddlewareRunType[], client); break;
+          case 'terminate': result = await this._runTerminateMiddleware(c.middleware as MiddlewareRunType[], client); break;
         }
         if (result instanceof Response) return result
         if (result === false) return result
       }
       // Test the route specific middleware
       if (theRoute.routeOptions.middleware) {
-        let middleware = theRoute.routeOptions.middleware
+        let middleware = theRoute.routeOptions.middleware as MiddlewareRunType[]
         let result
         switch (type) {
           case 'pre': result = await this._runPreMiddleware(middleware, client); break;
@@ -66,7 +68,7 @@ export class MiddlewareManager {
     return false
   }
 
-  private static async _runPreMiddleware(middleware: ((new () => Middleware) | Middleware | string)[], client: Client): Promise<boolean | Response> {
+  private static async _runPreMiddleware(middleware: MiddlewareRunType[], client: Client): Promise<boolean | Response> {
     for (let callback of middleware) {
       let result
       if (typeof callback == 'string') {
@@ -84,7 +86,7 @@ export class MiddlewareManager {
     return true
   }
 
-  private static async _runPostMiddleware(middleware: ((new () => Middleware) | Middleware | string)[], client: Client): Promise<boolean | Response> {
+  private static async _runPostMiddleware(middleware: MiddlewareRunType[], client: Client): Promise<boolean | Response> {
     for (let callback of middleware) {
       let result
       if (typeof callback == 'string') {
@@ -102,7 +104,7 @@ export class MiddlewareManager {
     return true
   }
 
-  private static async _runTerminateMiddleware(middleware: ((new () => Middleware) | Middleware | string)[], client: Client): Promise<boolean> {
+  private static async _runTerminateMiddleware(middleware: MiddlewareRunType[], client: Client): Promise<boolean> {
     for (let callback of middleware) {
       if (typeof callback == 'string') {
         let cb = await this.parseStringMiddleware(callback)

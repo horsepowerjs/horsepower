@@ -9,6 +9,8 @@ cd ..
 ROOT=$SCRIPT_DIR/..
 
 printf "${CYAN}Removing global @red5 packages${NC}\n"
+npm rm -g @red5/auth &
+npm rm -g @red5/mysql &
 npm rm -g @red5/middleware &
 npm rm -g @red5/router &
 npm rm -g @red5/server &

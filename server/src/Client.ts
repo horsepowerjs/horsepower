@@ -6,7 +6,6 @@ import { IncomingMessage, IncomingHttpHeaders } from 'http'
 
 import { RequestMethod, Route } from '@red5/router'
 import { Response } from '.'
-import { Session } from '@red5/session'
 import { getConfig } from './helper'
 import { AppSettings } from './Server'
 import { Storage, FileStorage } from '@red5/storage'
@@ -67,7 +66,7 @@ export class Client {
   // private _helpers: Helpers = {}
 
   public route!: Route
-  public session?: Session
+  public session?: import('@red5/session').Session
 
   public get request() { return this._req }
 

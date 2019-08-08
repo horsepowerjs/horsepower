@@ -1,10 +1,9 @@
 import * as path from 'path'
 import * as fs from 'fs'
 import * as helpers from './helper'
-import { Client } from '@red5/server'
+import { Client } from '.'
 import { Red5Template } from '@red5/template'
 import { Storage } from '@red5/storage'
-import { Session } from '@red5/session'
 
 export interface pug {
   renderFile(path: string, options?: {}, callback?: Function): string
@@ -34,7 +33,7 @@ export class Template {
         get: client.data.getAll,
         post: client.data.postAll,
         request: client.data.requestAll,
-        session: client.session as Session,
+        session: client.session as import('@red5/session').Session,
         params: client.route.params
       })
       let file = path.join(this._root, filePath)

@@ -1,5 +1,5 @@
 import { StorageSettings, Storage } from '@red5/storage'
-import { Client, Response, log, MiddlewareManager } from '@red5/server'
+import { Client, Response, log, MiddlewareManager } from '.'
 import { Router } from '@red5/router'
 
 import * as http from 'http'
@@ -282,7 +282,7 @@ export class Server {
       !resp && await this.getErrorPage(client, 400, { message: new Error().stack })
       await this.send(client, req, res)
     } catch (e) {
-      await this.getErrorPage(client, 500, { message: new Error().stack })
+      await this.getErrorPage(client, 500, { message: e.stack })
       await this.send(client, req, res)
       log.error(e, client)
     }

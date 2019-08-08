@@ -1,6 +1,6 @@
 {
     "name": "@red5/server",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "description": "The master server for the red5 http server.",
     "main": "lib/index.js",
     "homepage": "https://red5js.com",

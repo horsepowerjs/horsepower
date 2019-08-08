@@ -12,6 +12,15 @@ export type RequestMethod = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete'
 //   postHandle?(client: Client): any
 // }
 
+function isNewable(classRef) {
+  try {
+    new classRef()
+  } catch (e) {
+    return false
+  }
+  return true
+}
+
 export interface RouterOptions {
   middleware?: ((new () => Middleware) | Middleware | string)[]
   name?: string
@@ -88,10 +97,10 @@ export class Router {
         for (let root of this.controllerRoots) {
           try {
             let module = await import(path.join(root, controller))
-            if (module && module.constructor && module.default) {
+            if (module && module.default && isNewable(module.default)) {
               callback = new module.default()[method]
               break
-            } else if (module && module.constructor) {
+            } else if (module && isNewable(module)) {
               callback = new module()[method]
               break
             } else {
