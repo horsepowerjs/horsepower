@@ -1,4 +1,4 @@
-import { DB, DBRaw, RowDataPacket } from './DB';
+import { DB, DBRaw, RowDataPacket, DBValue } from './DB';
 
 export interface FieldData {
   column: string
@@ -87,27 +87,45 @@ export abstract class Model extends DB {
     return await super.chunk(rows, callback)
   }
 
-  public static async find<T extends Model>(primaryKey: any | object): Promise<RowDataPacket | null> {
-    let c = new this() as T
-    if (typeof c.$primaryKey == 'string') {
+  public static async find<T extends Model>(primaryKey: DBValue | object): Promise<T | null> {
+    let c = Reflect.construct(this, []) as T
+    c.table(c.$table)
+    // If the primary key is a single value and the primary key data is not an object
+    if (typeof c.$primaryKey == 'string' && typeof primaryKey != 'object') {
       c.where(c.$primaryKey, primaryKey)
-    } else if (Array.isArray(c.$primaryKey) && typeof primaryKey == 'object') {
+    }
+
+    // If the primary key columns value is an array of strings and the primary key data is an object
+    else if (Array.isArray(c.$primaryKey) && typeof primaryKey == 'object') {
       for (let k of c.$primaryKey) {
         c.where(k, primaryKey[k])
       }
     }
-    return await c.first()
+
+    // Nothing matched return
+    else {
+      return null
+    }
+
+    // We now have something to query try and find the item in the database
+    let first = await c.first()
+    if (!first) return null
+    let model = Reflect.construct(this, []) as T
+    for (let k in first) {
+      model.set(k, first[k])
+    }
+    return model
   }
 
-  public static async findOrFail(primaryKey: any | object): Promise<RowDataPacket | null> {
+  public static async firstOrFail<T extends Model>(primaryKey: any | object): Promise<T> {
     let r = await this.find(primaryKey)
-    if (!r) throw new Error(`Could not find anything for ${this.constructor.name}`)
-    return r
+    if (!r) throw new Error(`Could not find anything for "${this.name}"`)
+    return r as T
   }
 
-  public static async findOrCreate<T extends Model>(primaryKey: any | object) {
+  public static async firstOrCreate<T extends Model>(primaryKey: any | object): Promise<T> {
     let r = await this.find(primaryKey)
-    if (r) return r
-    return new this() as T
+    if (r) return r as T
+    return Reflect.construct(this, []) as T
   }
 }
