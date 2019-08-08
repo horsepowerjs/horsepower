@@ -1,6 +1,7 @@
 import * as mysql from 'mysql'
 import { configPath, getConfig } from '@red5/server'
 import { QueryInfo } from '.'
+import { Model } from './Model';
 
 export declare type DBValue = string | number | DBRaw
 export declare type DBComp = '=' | '<' | '>' | '>=' | '<=' | '!=' | '<>'
@@ -511,7 +512,7 @@ export class DB {
    * @returns
    * @memberof DB
    */
-  public async query(query: string, ...replacements: any[]) {
+  public async query(query: string, ...replacements: any[]): Promise<RowDataPacket[]> {
     return new Promise<RowDataPacket[]>(async resolve => {
       let connection = !this._connection ? await this._getConnection() : this._connection
       if (!connection) throw new Error('Cannot query without a connection')
@@ -540,7 +541,7 @@ export class DB {
    * @returns
    * @memberof DB
    */
-  public async get() {
+  public async get(): Promise<RowDataPacket[]> {
     let query = this._queryInfo.query
     return await this.query(query, ...this._queryInfo.placeholders)
   }

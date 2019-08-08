@@ -1,9 +1,12 @@
-import { DB, DBRaw, RowDataPacket, DBValue } from './DB';
+import { DB, DBRaw, DBValue, RowDataPacket } from './DB';
+import { Collection } from '@red5/server'
 
 export interface FieldData {
   column: string
   value: any
 }
+
+type NonAbstractModel<T extends Model> = (new () => T) & typeof Model
 
 export abstract class Model extends DB {
 
@@ -12,6 +15,9 @@ export abstract class Model extends DB {
 
   /** @type {string} The table's primary key field or an array of fields that makeup the primary key */
   protected $primaryKey: string | string[] = 'id'
+
+  /** @type {boolean} The primary key is assumed to be incrementing, disable this if it does not */
+  protected $incrementing: boolean = true
 
   /**
    * @type {string} An optional connection name that is defined in `config/db.js`.
@@ -28,6 +34,31 @@ export abstract class Model extends DB {
 
   protected constructor() {
     super()
+  }
+
+  /**
+   * Converts Database data to a model or collection of models
+   */
+  public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket): T
+  public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket[]): Collection<T>
+  public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket | RowDataPacket[]): Collection<T> | T {
+    if (Array.isArray(data)) {
+      let collection = new Collection<T>()
+      for (let row of data) {
+        let mod = new model()
+        collection.add(mod)
+        for (let k in row) {
+          mod.set(k, row[k])
+        }
+      }
+      return collection
+    } else {
+      let mod = new model()
+      for (let k in data) {
+        mod.set(k, data[k])
+      }
+      return mod
+    }
   }
 
   private _init() {
@@ -64,7 +95,7 @@ export abstract class Model extends DB {
     // } else {
     //   console.log('here')
     // }
-    return true
+    // return true
   }
 
   public async exists(...fields: string[]): Promise<boolean> {
@@ -87,7 +118,7 @@ export abstract class Model extends DB {
     return await super.chunk(rows, callback)
   }
 
-  public static async find<T extends Model>(primaryKey: DBValue | object): Promise<T | null> {
+  public static async find<T extends Model>(this: NonAbstractModel<T>, primaryKey: DBValue | object): Promise<T | null> {
     let c = Reflect.construct(this, []) as T
     c.table(c.$table)
     // If the primary key is a single value and the primary key data is not an object
@@ -110,22 +141,24 @@ export abstract class Model extends DB {
     // We now have something to query try and find the item in the database
     let first = await c.first()
     if (!first) return null
-    let model = Reflect.construct(this, []) as T
-    for (let k in first) {
-      model.set(k, first[k])
-    }
-    return model
+    return Model.convert(this, first)
   }
 
-  public static async firstOrFail<T extends Model>(primaryKey: any | object): Promise<T> {
-    let r = await this.find(primaryKey)
+  public static async firstOrFail<T extends Model>(this: NonAbstractModel<T>, primaryKey: any | object): Promise<T> {
+    let r = await this.find<T>(primaryKey)
     if (!r) throw new Error(`Could not find anything for "${this.name}"`)
-    return r as T
+    return r
   }
 
-  public static async firstOrCreate<T extends Model>(primaryKey: any | object): Promise<T> {
-    let r = await this.find(primaryKey)
-    if (r) return r as T
+  public static async firstOrCreate<T extends Model>(this: NonAbstractModel<T>, primaryKey: any | object): Promise<T> {
+    let r = await this.find<T>(primaryKey)
+    if (r) return r
     return Reflect.construct(this, []) as T
+  }
+
+  public static async all<T extends Model>(this: NonAbstractModel<T>): Promise<Collection<T>> {
+    let model = Reflect.construct(this, []) as T
+    let items = await model.get()
+    return Model.convert(this, items)
   }
 }

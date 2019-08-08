@@ -8,6 +8,7 @@ import { isProduction } from './helper/application'
 
 export { AppSettings, RouterSettings, ViewSettings, DBSettings } from './Server'
 export * from './helper'
+export * from './util'
 export * from './Client'
 export * from './Response'
 export * from './Event'
