@@ -31,7 +31,7 @@ printf "${CYAN}Auth${NC}\n"
 cd $ROOT/plugins/auth && npm update && npm audit fix
 
 printf "${CYAN}Session${NC}\n"
-cd $ROOT/session && npm update && npm audit fix
+cd $ROOT/plugins/session && npm update && npm audit fix
 
 printf "${CYAN}Sockets${NC}\n"
-cd $ROOT/sockets && npm update && npm audit fix
+cd $ROOT/plugins/sockets && npm update && npm audit fix
