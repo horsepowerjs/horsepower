@@ -9,6 +9,7 @@ import { Response } from '.'
 import { getConfig } from './helper'
 import { AppSettings } from './Server'
 import { Storage, FileStorage } from '@red5/storage'
+import { collect } from './util';
 
 export interface FileType {
   /**
@@ -178,6 +179,18 @@ export class Client {
 
   public get response() {
     return this._response
+  }
+
+  public all() {
+    return collect(Object.entries(this.data.requestAll).map(i => ({ key: i[0], value: i[1] })))
+  }
+
+  public only(...fields: string[]) {
+    return collect(Object.entries(this.data.requestAll).filter(i => fields.includes(i[0])).map(i => ({ key: i[0], value: i[1] })))
+  }
+
+  public except(...fields: string[]) {
+    return collect(Object.entries(this.data.requestAll).filter(i => !fields.includes(i[0])).map(i => ({ key: i[0], value: i[1] })))
   }
 
   /**

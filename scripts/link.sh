@@ -1,3 +1,6 @@
+# printf "This script is no longer used, the TypeScript files resolve their dependencies themselves in the tsconfig.json file"
+# exit
+
 : '
 WARNING: This is for development usage only.
 Execute this file to generate global development links.

@@ -190,11 +190,11 @@ export class DB {
     let db = new DB
     db.table(table)
     db._connName = name
-    return this
+    return db
   }
 
   protected async _connect(name: string | undefined) {
-    return new Promise(resolve => {
+    return new Promise<boolean>(resolve => {
       // Get the configurations from file if it hasn't been read yet
       if (!DB._configuration) DB._configuration = getConfig<DBSettings>('db')
       if (!DB._configuration) throw new Error(`Could not find the database configuration at "${configPath('db.js')}"`)
@@ -220,7 +220,7 @@ export class DB {
 
       // If a pool still hasn't been found create a new pool
       if (db && alias && !this._pool) {
-        if (this._pool) return resolve(true)
+        // if (this._pool) return resolve(true)
         let pool = mysql.createPool({
           host: db.hostname,
           user: db.username,
@@ -242,7 +242,7 @@ export class DB {
       await this._connect(this._connName)
       if (!this._pool) throw new Error(`No MySQL connection found for "${this._connName}"`)
       this._pool.getConnection((err, connection) => {
-        // if (err) return resolve(connection)
+        if (err) throw err
         this._connection = connection
         resolve(connection)
       })
@@ -530,8 +530,12 @@ export class DB {
   }
 
   public static async insert(query: string, ...replacements: any[]): Promise<boolean> {
-    let result = await new DB().query(query, ...replacements)
-    return !!result.length
+    try {
+      await new DB().query(query, ...replacements)
+      return true
+    } catch (e) {
+      return false
+    }
   }
 
   /**
