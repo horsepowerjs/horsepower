@@ -1,4 +1,11 @@
-export function collect<T extends object>(data?: T[]): Collection<T> {
+export type KeyValuePair = { key: string, value: any }
+
+export function collect<T extends KeyValuePair>(data: [string, any][]): Collection<KeyValuePair>
+export function collect<T extends object>(data: T[]): Collection<T>
+export function collect<T extends object>(data: any[] | [string, any][]): Collection<T> {
+  if (Array.isArray(data) && Array.isArray(data[0]) && data[0].length == 2) {
+    return new Collection<T>(data, true)
+  }
   return new Collection<T>(data)
 }
 
@@ -8,8 +15,18 @@ export class Collection<T extends object> {
 
   public get length() { return this._items.length }
 
-  public constructor(data?: T[]) {
-    data && data.length > 0 && this._items.push(...data)
+  public constructor()
+  public constructor(data: T[])
+  public constructor(data: [string, any][], keyVal?: boolean)
+  public constructor(data?: any, keyVal: boolean = false) {
+    // data && data.length > 0 && this._items.push(...data)
+    if (data && Array.isArray(data)) {
+      if (keyVal) {
+        this._items.push(...data.map<KeyValuePair[]>(i => ({ key: i[0], value: i[1] })))
+      } else if (data.length > 0) {
+        this._items.push(...data)
+      }
+    }
     return new Proxy(this, {
       get: (target, prop, receiver) => {
         if (typeof prop == 'string' && prop.match(/^\d+$/)) {

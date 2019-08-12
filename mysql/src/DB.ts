@@ -1,9 +1,9 @@
 import * as mysql from 'mysql'
 import { configPath, getConfig } from '@red5/server'
 import { QueryInfo } from '.'
-import { Model } from './Model';
 
 export declare type DBValue = string | number | DBRaw
+export declare type DBCell = string | number
 export declare type DBComp = '=' | '<' | '>' | '>=' | '<=' | '!=' | '<>'
 export declare type DBSort = 'asc' | 'desc'
 export declare type DBWhereType = 'and' | 'or'
@@ -163,11 +163,11 @@ export class DBNull {
 
 export class DB {
   private static _connectionPools: DBPool[] = []
-  private static _configuration?: DBSettings
+  private static _configuration: DBSettings | null = null
 
-  private _connection?: mysql.PoolConnection
-  private _pool?: mysql.Pool
-  private _connName?: string
+  private _connection: mysql.PoolConnection | null = null
+  private _pool: mysql.Pool | null = null
+  private _connName: string | null = null
 
   private readonly _queryInfo: QueryInfo
 
@@ -193,10 +193,10 @@ export class DB {
     return db
   }
 
-  protected async _connect(name: string | undefined) {
+  protected async _connect(name: string | null) {
     return new Promise<boolean>(resolve => {
       // Get the configurations from file if it hasn't been read yet
-      if (!DB._configuration) DB._configuration = getConfig<DBSettings>('db')
+      if (!DB._configuration) DB._configuration = getConfig<DBSettings>('db') || null
       if (!DB._configuration) throw new Error(`Could not find the database configuration at "${configPath('db.js')}"`)
 
       // Find the requested configuration within the configurations
@@ -551,6 +551,35 @@ export class DB {
   }
 
   /**
+   * Gets the first row in the result set
+   *
+   * @returns {Promise<RowDataPacket>}
+   * @memberof DB
+   */
+  public async first(): Promise<RowDataPacket | null> {
+    let s = this._queryInfo.limit, sl = this._queryInfo.offset
+    let rows = await this.limit(1).offset(0).get()
+    if (rows.length == 0) return null
+    this.limit(s).offset(sl)
+    return rows[0]
+  }
+
+  /**
+   * Get the first row in the result set and returns a specific cell value
+   *
+   * @param {string} column
+   * @returns {(Promise<DBCell | null>)}
+   * @memberof DB
+   */
+  public async cell(column: string): Promise<DBCell | null> {
+    let result = await this.first()
+    if (result) {
+      return result[column]
+    }
+    return null
+  }
+
+  /**
    * Begins a database transaction.
    * If commit is not called, it will automatically get called after the callback.
    *
@@ -657,20 +686,6 @@ export class DB {
   }
 
   /**
-   * Gets the first row in the result set
-   *
-   * @returns {Promise<RowDataPacket>}
-   * @memberof DB
-   */
-  public async first(): Promise<RowDataPacket | null> {
-    let s = this._queryInfo.limit, sl = this._queryInfo.offset
-    let rows = await this.limit(1).offset(0).get()
-    if (rows.length == 0) return null
-    this.limit(s).offset(sl)
-    return rows[0]
-  }
-
-  /**
    * Executes a stored procedure.
    *
    * @static
@@ -771,7 +786,7 @@ export class DB {
    * @returns {Promise<boolean>}
    * @memberof DB
    */
-  public async doesntExist(): Promise<boolean> {
+  public async doesNotExist(): Promise<boolean> {
     let select = this._queryInfo.select
     let exists = await this.exists()
     this.setSelect(...select)

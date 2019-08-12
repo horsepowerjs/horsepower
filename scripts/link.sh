@@ -11,7 +11,7 @@ This file will attempt the following:
   - Link all the modules to their dependencies
 '
 
-# npm link @red5/server @red5/router @red5/middleware @red5/session @red5/storage @red5/template @red5/mysql @red5/auth @red5/sockets
+# npm link @red5/server @red5/router @red5/session @red5/storage @red5/template @red5/mysql @red5/auth @red5/sockets
 
 CYAN='\033[0;36m'
 NC='\033[0m'

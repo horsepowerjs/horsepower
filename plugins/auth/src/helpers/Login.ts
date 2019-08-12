@@ -45,8 +45,10 @@ export class Login {
     let hash = await bcrypt.hash(password, 10)
 
     let auth = new Auth(this.table)
-    auth.set(this.userField, username)
-    auth.set(this.passField, hash)
+    auth.userField = username
+    auth.passField = hash
+    // auth.set(this.userField, username)
+    // auth.set(this.passField, hash)
     if (!await auth.exists(this.userField)) {
       return await auth.save()
     }
