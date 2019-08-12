@@ -1,6 +1,6 @@
 import { DB, DBRaw, RowDataPacket, DBCell } from './DB';
 import { Collection } from './Collection'
-import { Collection as BaseCollection, KeyValuePair } from '@red5/server'
+import { Collection as BaseCollection, KeyValuePair, get } from '@red5/server'
 
 export interface FieldData {
   column: string
@@ -9,8 +9,10 @@ export interface FieldData {
 
 type NonAbstractModel<T extends Model> = (new () => T) & typeof Model
 
-export interface Model {
+export interface Model extends DB {
   [key: string]: any
+  get<T extends Model>(): Promise<Collection<T>>
+  first<T extends Model>(): Promise<T | null>
 }
 
 export type PrimaryKey = DBCell | Record<Model["$primaryKey"][number], DBCell>
@@ -153,6 +155,11 @@ export abstract class Model extends DB {
     return Model.convert(<NonAbstractModel<T>>this.constructor, await super.first())
   }
 
+  public async update(values: object): Promise<boolean> {
+    this._init()
+    return super.update(values)
+  }
+
   /** @internal */
   private setOrAddItem(column: string, value: any) {
     let record = this.fieldData.find(i => i.column == column)
@@ -239,13 +246,13 @@ export abstract class Model extends DB {
     if (!c) return null
 
     // We now have something to query try and find the item in the database
-    let items = await c.get()
+    let items = await c.get<T>()
 
     // If no item was found in the database return null
     if (!items.length) return null
 
     // If an item was found return the model
-    return Model.convert(this, items.length > 1 ? items : items[0])
+    return items.length > 1 ? items : items[0]
   }
 
   public static async findOrFail<T extends Model>(this: NonAbstractModel<T>, primaryKey: DBCell[] | object[]): Promise<Collection<T>>
@@ -271,13 +278,13 @@ export abstract class Model extends DB {
     Object.entries(filter).forEach(i => { c.where(i[0], i[1]) })
 
     // We have something to query try and find the first item in the database that matches
-    let item = await c.first()
+    let item = await c.first<T>()
 
     // If no item was found in the database return null
     if (!item) return null
 
     // If an item was found return the model
-    return Model.convert(this, item)
+    return item
   }
   /**
    * Attempts to find the first record in the database if it is not found an error will be thrown
@@ -347,7 +354,7 @@ export abstract class Model extends DB {
    */
   public static async all<T extends Model>(this: NonAbstractModel<T>): Promise<Collection<T>> {
     let model = Reflect.construct(this, []) as T
-    let items = await model.get()
-    return Model.convert(this, items)
+    let items = await model.get<T>()
+    return items
   }
 }

@@ -5,9 +5,7 @@ import { parse as parseCookie } from 'cookie'
 import { IncomingMessage, IncomingHttpHeaders } from 'http'
 
 import { RequestMethod, Route } from '@red5/router'
-import { Response } from '.'
-import { getConfig } from './helper'
-import { AppSettings } from './Server'
+import { Response, getConfig, AppSettings } from '@red5/server'
 import { Storage, FileStorage } from '@red5/storage'
 import { collect } from './util';
 
@@ -96,7 +94,7 @@ export class Client {
     try {
       if (!this.session && require.resolve('@red5/session')) {
         let sess = await import('@red5/session')
-        this.session = new sess.Session(this)
+        this.session = new sess.Session(<any>this)
       }
     } catch (e) { }
   }

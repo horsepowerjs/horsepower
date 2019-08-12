@@ -22,7 +22,7 @@ export class Collection<T extends object> {
     // data && data.length > 0 && this._items.push(...data)
     if (data && Array.isArray(data)) {
       if (keyVal) {
-        this._items.push(...data.map<KeyValuePair[]>(i => ({ key: i[0], value: i[1] })))
+        this._items.push(...data.map<KeyValuePair>(i => ({ key: i[0], value: i[1] })) as T[])
       } else if (data.length > 0) {
         this._items.push(...data)
       }

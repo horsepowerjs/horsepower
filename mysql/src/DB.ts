@@ -265,6 +265,18 @@ export class DB {
     return this
   }
 
+  public set(key: string, value: DBValue): this
+  public set(data: object): this
+  public set(...args: (string | DBValue | object)[]): this {
+    if (args.length == 1 && typeof args[0] == 'object') {
+      let data = args[0] as object
+      Object.entries(data).forEach(i => this._queryInfo.select)
+    } else {
+
+    }
+    return this
+  }
+
   /**
    * The maximum number of results to return
    *
@@ -577,6 +589,22 @@ export class DB {
       return result[column]
     }
     return null
+  }
+
+  public async update(values: object): Promise<boolean> {
+    // let set = Object.entries(values).map(() => '?? = ?')
+    // let vals = Object.entries(values)
+    //   .reduce<any[]>((a, i: [string, any]) => a.concat(i[0], i[1]), [])
+
+    this.set(values)
+
+    let filter = this._queryInfo.filter
+    let where = filter.length > 0 ? `where ${filter}` : ''
+    await this.query(`update ?? set ${set} ${where}`, ...[
+      ...vals,
+      ...this._queryInfo.placeholders,
+    ])
+    return true
   }
 
   /**

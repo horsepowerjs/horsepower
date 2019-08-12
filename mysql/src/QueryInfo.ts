@@ -18,6 +18,7 @@ export class QueryInfo {
   private _where: (DBKeyVal | DBRaw | DBBetween | DBIn | DBMatchAgainst | DBNull)[] = []
   private _having: (DBKeyVal | DBRaw | DBBetween | DBIn | DBNull)[] = []
   private _select: (string | DBRaw | DBMatchAgainst)[] = []
+  private _set: (DBKeyVal)[] = []
 
   private _placeholders: DBValue[] = []
 
@@ -41,6 +42,7 @@ export class QueryInfo {
 
   public get placeholders() { return this._placeholders }
   public get query() { return this._query }
+  public get filter() { return this._getFilter(this._where) }
   public get queryType() { return this._queryType }
 
   public set table(value: string | undefined) { this._table = value, this._update() }
@@ -68,6 +70,7 @@ export class QueryInfo {
   public addWhere(...value: (DBKeyVal | DBRaw | DBBetween | DBIn | DBMatchAgainst | DBNull)[]) { this._where.push(...value), this._update() }
   public addHaving(...value: (DBKeyVal | DBRaw | DBBetween | DBIn | DBNull)[]) { this._having.push(...value), this._update() }
   public addSelect(...value: (string | DBRaw | DBMatchAgainst)[]) { this._select.push(...value), this._update() }
+  public addSet(...value: (DBKeyVal)[]) { this._set.push(...value), this._update() }
 
   private _update() {
     this._query = this._buildSelectString().trim()
@@ -136,6 +139,30 @@ export class QueryInfo {
     return str.join(' ')
   }
 
+  private _buildUpdateString(): string {
+
+    this._placeholders = []
+    let str = ['update']
+
+    // If there are where items, build the where item list
+    if (this._set.length > 0) {
+      this._set.forEach(i => {
+        this.placeholders.push(i.column)
+        this.placeholders.push(i.value)
+      })
+      str.push(`set`)
+      str.push(...this._set.map(() => '?? = ?'))
+    }
+
+    // If there are where items, build the where item list
+    if (this._where.length > 0) {
+      let where = this._getFilter(this._where)
+      str.push(`where ${where}`)
+    }
+
+    return str.join(' ')
+  }
+
   /**
    * Gets the filter for the WHERE or HAVING statements.
    *
@@ -145,7 +172,7 @@ export class QueryInfo {
    * @memberof DB
    */
   private _getFilter(filters: any[]): string {
-    return filters.map((i, idx) => {
+    let filter = filters.map((i, idx) => {
       if (i instanceof DBRaw) {
         this._placeholders.push(...i.replacements)
         return i.value
@@ -173,7 +200,8 @@ export class QueryInfo {
         this._placeholders.push(i.column, i.value)
         return `${idx == 0 ? '' : i.type} ?? ${this._operators.includes(i.comp) ? i.comp : '='} ?`.trim()
       }
-    }).join(' ')
+    })
+    return filter.length > 0 ? filter.join(' ') : ''
   }
 
 }

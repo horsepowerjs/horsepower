@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt'
 import { AuthSettings } from '../routes'
 
 class Auth extends Model {
-  protected $table: string = ''
+  public $table: string = ''
   public constructor(table: string) {
     super()
     this.$table = table

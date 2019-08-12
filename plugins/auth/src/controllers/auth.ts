@@ -5,6 +5,7 @@ import { Login } from '../helpers/Login'
 export default class {
 
   private config?: AuthSettings
+
   public constructor() {
     this.config = getConfig<AuthSettings>('auth')
   }
