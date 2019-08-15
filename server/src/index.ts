@@ -25,6 +25,18 @@ export function stop() {
 }
 
 export class log {
+
+  public static console(...message: any[]) {
+    if (!isProduction()) {
+      if (message.every(i => ['string', 'number', 'boolean', 'bigint'].includes(typeof i)))
+        console.log(`\x1b[38;2;255;100;0m${message.join(' ')}\x1b[0m`)
+      else
+        console.log(...message.map(i =>
+          `\x1b[38;2;255;100;0m${JSON.stringify(i).replace(/^"|"$/g, '')}\x1b[0m`)
+        )
+    }
+  }
+
   public static async error(message: string | Error, client?: Client) {
     let d = new Date
     let file = ''

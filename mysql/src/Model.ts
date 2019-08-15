@@ -62,6 +62,13 @@ export abstract class Model extends DB {
 
   private fieldData: FieldData[] = []
 
+  public get data(): object {
+    return this.fieldData.reduce((obj, itm) => {
+      obj[itm.column] = itm.value
+      return obj
+    }, {})
+  }
+
   protected constructor() {
     super()
     return new Proxy(this, {
@@ -102,9 +109,10 @@ export abstract class Model extends DB {
   /**
    * Converts Database data to a model or collection of models
    */
-  public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket | null): T
   public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket[]): Collection<T>
-  public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket | null | RowDataPacket[]): Collection<T> | T | null {
+  public static convert<T extends Model>(model: NonAbstractModel<T>, data: null): null
+  public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket): T
+  public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket | RowDataPacket[] | null): Collection<T> | T | null {
     if (Array.isArray(data)) {
       let collection = new Collection<T>()
       for (let row of data) {
@@ -152,7 +160,9 @@ export abstract class Model extends DB {
 
   public async first<T extends Model>(): Promise<T | null> {
     this._init()
-    return Model.convert(<NonAbstractModel<T>>this.constructor, await super.first())
+    let first = await super.first()
+    if (first) return Model.convert(<NonAbstractModel<T>>this.constructor, first)
+    return null
   }
 
   public async update(values: object): Promise<boolean> {
@@ -202,12 +212,12 @@ export abstract class Model extends DB {
     return !!((await tbl.setSelect(new DBRaw('1')).get()).length)
   }
 
-  public async chunk(rows: number, callback: (rows: any[]) => void): Promise<void>
-  public async chunk(callback: (rows: any[]) => void): Promise<void>
-  public async chunk(...args: (number | Function)[]): Promise<void> {
+  public async chunk<T extends Model>(rows: number, callback: (rows: Collection<T>) => void): Promise<void>
+  public async chunk<T extends Model>(callback: (rows: Collection<T>) => void): Promise<void>
+  public async chunk<T extends Model>(...args: (number | Function)[]): Promise<void> {
     this._init()
     let rows = (args.length == 2 ? args[0] : 10) as number
-    let callback = (args.length == 1 ? args[0] : args[1]) as (rows: any[]) => void
+    let callback = (args.length == 1 ? args[0] : args[1]) as (rows: Collection<T>) => void
     return await super.chunk(rows, callback)
   }
 

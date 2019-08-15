@@ -42,4 +42,9 @@ export class Collection<T extends Model> extends BaseCollection<T> {
   }
 
   public unique() { }
+
+  public toJson() {
+    let items = this._items.reduce<object[]>((arr, itm) => arr.concat(itm.data), [])
+    return JSON.stringify(items)
+  }
 }

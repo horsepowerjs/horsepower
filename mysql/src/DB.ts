@@ -1,6 +1,8 @@
 import * as mysql from 'mysql'
-import { configPath, getConfig } from '@red5/server'
+import { configPath, getConfig, log } from '@red5/server'
 import { QueryInfo } from '.'
+import { Collection } from './Collection';
+import { Model } from './Model';
 
 export declare type DBValue = string | number | DBRaw
 export declare type DBCell = string | number
@@ -270,7 +272,7 @@ export class DB {
   public set(...args: (string | DBValue | object)[]): this {
     if (args.length == 1 && typeof args[0] == 'object') {
       let data = args[0] as object
-      Object.entries(data).forEach(i => this._queryInfo.select)
+      Object.entries(data).forEach(i => this._queryInfo.addSet(new DBKeyVal(i[0], '=', i[1])))
     } else {
 
     }
@@ -557,8 +559,8 @@ export class DB {
    * @returns
    * @memberof DB
    */
-  public async get(): Promise<RowDataPacket[]> {
-    let query = this._queryInfo.query
+  public async get(): Promise<RowDataPacket[] | any> {
+    let query = this._queryInfo.selectQuery
     return await this.query(query, ...this._queryInfo.placeholders)
   }
 
@@ -592,19 +594,14 @@ export class DB {
   }
 
   public async update(values: object): Promise<boolean> {
-    // let set = Object.entries(values).map(() => '?? = ?')
-    // let vals = Object.entries(values)
-    //   .reduce<any[]>((a, i: [string, any]) => a.concat(i[0], i[1]), [])
-
     this.set(values)
-
-    let filter = this._queryInfo.filter
-    let where = filter.length > 0 ? `where ${filter}` : ''
-    await this.query(`update ?? set ${set} ${where}`, ...[
-      ...vals,
-      ...this._queryInfo.placeholders,
-    ])
-    return true
+    try {
+      await this.query(this._queryInfo.updateQuery, ...this._queryInfo.placeholders)
+      return true
+    } catch (e) {
+      log.error(e)
+      return false
+    }
   }
 
   /**
@@ -674,7 +671,7 @@ export class DB {
    * @returns {Promise<void>}
    * @memberof DB
    */
-  public async chunk(rows: number, callback: (rows: any[]) => void): Promise<void>
+  public async chunk<T extends Model>(rows: number, callback: (rows: Collection<T>) => void): Promise<void>
   /**
    * Streams the results in chunks of 10.
    *
@@ -682,32 +679,33 @@ export class DB {
    * @returns {Promise<void>}
    * @memberof DB
    */
-  public async chunk(callback: (rows: any[]) => void): Promise<void>
+  public async chunk<T extends Model>(callback: (rows: Collection<T>) => void): Promise<void>
+  public async chunk(callback: (rows: Collection<any>) => void): Promise<void>
   public async chunk(...args: (number | Function)[]): Promise<void> {
     let callback = (args.length == 2 ? args[1] : args[0]) as Function
     let rows = (args.length == 2 ? args[0] : 10) as number
-    let query = this._queryInfo.query
-    console.log(query, '=>', this._queryInfo.placeholders)
+    let query = this._queryInfo.selectQuery
+    log.console(query, '=>', this._queryInfo.placeholders)
     return new Promise<void>(async resolve => {
       let connection = await this._getConnection()
-      let resultRows: any[] = []
+      let collection: Collection<any> = new Collection
       // Send the results to the client
       async function sendResults() {
         connection.pause()
-        await callback(resultRows)
-        resultRows = []
+        await callback(collection)
+        collection = new Collection
         connection.resume()
       }
       // Execute the query
       connection.query(query, this._queryInfo.placeholders)
         // Build the result array and send it when the array is long enough
         .on('result', async (row: any) => {
-          resultRows.push(row)
-          resultRows.length == rows && await sendResults()
+          collection.add(row)
+          collection.length == rows && await sendResults()
         })
         // Send the result array if we never got to the full length and there is no more results
         .on('end', async () => {
-          resultRows.length > 0 && await sendResults()
+          collection.length > 0 && await sendResults()
           resolve()
         })
     })

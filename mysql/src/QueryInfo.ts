@@ -5,7 +5,8 @@ export declare type QueryType = 'select' | 'insert' | 'update' | 'delete' | 'rep
 export class QueryInfo {
   private readonly _operators = ['=', '<', '>', '>=', '<=', '!=', '<>']
 
-  private _query: string = ''
+  private _selectQuery: string = ''
+  private _updateQuery: string = ''
   private _queryType: QueryType = 'select'
 
   private _table?: string
@@ -41,7 +42,8 @@ export class QueryInfo {
   }
 
   public get placeholders() { return this._placeholders }
-  public get query() { return this._query }
+  public get selectQuery() { return this._selectQuery }
+  public get updateQuery() { return this._updateQuery }
   public get filter() { return this._getFilter(this._where) }
   public get queryType() { return this._queryType }
 
@@ -73,8 +75,9 @@ export class QueryInfo {
   public addSet(...value: (DBKeyVal)[]) { this._set.push(...value), this._update() }
 
   private _update() {
-    this._query = this._buildSelectString().trim()
-    this._queryType = (this._query.match(/^select|insert|update|delete|replace/i) || ['select'])[0] as QueryType
+    this._selectQuery = this._buildSelectString().trim()
+    this._updateQuery = this._buildUpdateString().trim()
+    this._queryType = (this._selectQuery.match(/^select|insert|update|delete|replace/i) || ['select'])[0] as QueryType
   }
 
   /**
@@ -143,6 +146,10 @@ export class QueryInfo {
 
     this._placeholders = []
     let str = ['update']
+
+    // Add the table to the query
+    str.push('??')
+    this._placeholders.push(this._table as string)
 
     // If there are where items, build the where item list
     if (this._set.length > 0) {
