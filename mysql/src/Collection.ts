@@ -22,26 +22,26 @@ export class Collection<T extends Model> extends BaseCollection<T> {
     })
     // }
   }
-  public diff() { }
-  public except() { }
-  public find() { }
-  public fresh() { }
-  public intersect() { }
-  public load() { }
-  public loadMissing() { }
+  // public diff() { }
+  // public except() { }
+  // public find() { }
+  // public fresh() { }
+  // public intersect() { }
+  // public load() { }
+  // public loadMissing() { }
 
   public modelKeys() {
     return this._items.map(i => i.primaryKey)
   }
 
-  public makeVisible() { }
-  public makeHidden() { }
+  // public makeVisible() { }
+  // public makeHidden() { }
 
   public only(...keys: PrimaryKey[]) {
     return this._items.filter(i => keys.includes(i.primaryKey))
   }
 
-  public unique() { }
+  // public unique() { }
 
   public toJson() {
     let items = this._items.reduce<object[]>((arr, itm) => arr.concat(itm.data), [])

@@ -7,7 +7,7 @@ export interface FieldData {
   value: any
 }
 
-type NonAbstractModel<T extends Model> = (new () => T) & typeof Model
+export type NonAbstractModel<T extends Model> = (new () => T) & typeof Model
 
 export interface Model extends DB {
   [key: string]: any
@@ -110,9 +110,11 @@ export abstract class Model extends DB {
    * Converts Database data to a model or collection of models
    */
   public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket[]): Collection<T>
-  public static convert<T extends Model>(model: NonAbstractModel<T>, data: null): null
   public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket): T
-  public static convert<T extends Model>(model: NonAbstractModel<T>, data: RowDataPacket | RowDataPacket[] | null): Collection<T> | T | null {
+  public static convert<T extends Model>(model: NonAbstractModel<T>, data: null): null
+  public static convert<T extends Model>(model: NonAbstractModel<T>, data: T): T
+  public static convert<T extends Model>(model: NonAbstractModel<T>, data: T | RowDataPacket | RowDataPacket[] | null): Collection<T> | T | null {
+    if (data instanceof Model) return data
     if (Array.isArray(data)) {
       let collection = new Collection<T>()
       for (let row of data) {

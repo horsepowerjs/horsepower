@@ -2,7 +2,7 @@ import * as mysql from 'mysql'
 import { configPath, getConfig, log } from '@red5/server'
 import { QueryInfo } from '.'
 import { Collection } from './Collection';
-import { Model } from './Model';
+import { Model, NonAbstractModel } from './Model';
 
 export declare type DBValue = string | number | DBRaw
 export declare type DBCell = string | number
@@ -699,7 +699,7 @@ export class DB {
       // Execute the query
       connection.query(query, this._queryInfo.placeholders)
         // Build the result array and send it when the array is long enough
-        .on('result', async (row: any) => {
+        .on('result', async (row: RowDataPacket) => {
           collection.add(row)
           collection.length == rows && await sendResults()
         })
@@ -708,6 +708,38 @@ export class DB {
           collection.length > 0 && await sendResults()
           resolve()
         })
+    })
+  }
+
+  /**
+   * Uses a cursor to process a large number of results.
+   *
+   * @template T
+   * @param {(row: T) => void} callback The callback to handle each result.
+   * @returns {Promise<void>}
+   * @memberof DB
+   */
+  public async cursor<T extends Model>(callback: (row: T) => void): Promise<void>
+  /**
+   * Uses a cursor to process a large number of results.
+   *
+   * @param {(row: RowDataPacket) => void} callback The callback to handle each result.
+   * @returns
+   * @memberof DB
+   */
+  public async cursor(callback: (row: RowDataPacket) => void): Promise<void>
+  public async cursor<T extends Model>(callback: (row: RowDataPacket | T) => void): Promise<void> {
+    let connection = await this._getConnection()
+    return new Promise(resolve => {
+      connection.query(this._queryInfo.selectQuery, this._queryInfo.placeholders)
+        .on('result', async (row: RowDataPacket) => {
+          connection.pause()
+          if (this instanceof Model)
+            await callback(Model.convert(<NonAbstractModel<T>>this.constructor, row))
+          else await callback(row)
+          connection.resume()
+        })
+        .on('end', () => resolve())
     })
   }
 
