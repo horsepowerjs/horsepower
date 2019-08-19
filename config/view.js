@@ -1,4 +1,4 @@
-const { resourcePath } = require('@red5/server')
+const { resourcePath } = require('@horsepower/server')
 
 module.exports = {
   path: resourcePath('views')

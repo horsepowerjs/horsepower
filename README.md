@@ -1,20 +1,20 @@
 ## Table of contents
 
-* [Installation](#installation) &ndash; Installing the red5 http server
+* [Installation](#installation) &ndash; Installing the horsepower http server
 * [Server setup](#server-setup) &ndash; Setting up a proxy server
   * [Nginx](#nginx) &ndash; Setting up Nginx as a proxy server
   * [Apache](#apache) &ndash; Setting up Apache as a proxy server
 
 ## Installation
 
-It is recommended that you install the server via `@red5/cli`. This will download the repository, install the node modules, and make all necessary adjustments.
+It is recommended that you install the server via `@horsepower/cli`. This will download the repository, install the node modules, and make all necessary adjustments.
 
 
 ```bash
-npm i -g @red5/cli
+npm i -g @horsepower/cli
 
 cd ./Documents/www
-red5 new <website-name>
+horsepower new <website-name>
 
 node ./<website-name>/index.js
 ```
@@ -52,7 +52,7 @@ server {
   listen 80;
 
   # Setup the proxy
-  # This will forward all requests to the red5 http server
+  # This will forward all requests to the horsepower http server
   # and then it will relay the servers response back to the client
   location / {
     proxy_pass http://127.0.0.1:5000;
@@ -79,7 +79,7 @@ ln -s ../sites-available/example.com ./example.com
 Finally we start both of the services and test the domain (assuming it has already propagated).
 
 ```bash
-# Start the red5 http server
+# Start the horsepower http server
 pm2 start ./ecosystem.config.js
 
 # Start the nginx service
@@ -121,7 +121,7 @@ LoadModule proxy_http_module modules/mod_proxy_http.so
 Finally we start both of the services and test the domain (assuming it has already propagated).
 
 ```bash
-# Start the red5 http server
+# Start the horsepower http server
 pm2 start ./ecosystem.config.js
 
 # Start the apache service

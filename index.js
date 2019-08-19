@@ -1,4 +1,4 @@
-const { start } = require('@red5/server')
+const { start } = require('@horsepower/server')
 
 // Start the server
 start()

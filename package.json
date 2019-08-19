@@ -1,5 +1,5 @@
 {
-  "name": "red5",
+  "name": "horsepower",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
@@ -12,9 +12,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@red5/router": "^1.0.5",
-    "@red5/server": "^1.0.7",
-    "@red5/storage": "^1.0.4",
+    "@horsepower/router": "^1.0.0",
+    "@horsepower/server": "^1.0.0",
+    "@horsepower/storage": "^1.0.0",
     "dotenv": "^8.0.0"
   },
   "devDependencies": {

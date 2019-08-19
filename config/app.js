@@ -1,6 +1,6 @@
-const { env, storagePath } = require('@red5/server')
+const { env, storagePath } = require('@horsepower/server')
 
-/** @type {import('@red5/server').AppSettings} exports */
+/** @type {import('@horsepower/server').AppSettings} exports */
 module.exports = {
   // This is the port number that the node server will connect to.
   // In order to access the server you will need to hit the ip directly
@@ -26,8 +26,8 @@ module.exports = {
 
   // This puts the app in/out of maintenance mode
   // This can be triggered via command line:
-  //   red5 maintenance:up
-  //   red5 maintenance:down
+  //   horsepower maintenance:up
+  //   horsepower maintenance:down
   maintenance: env('APP_MAINTENANCE', 'false') === 'true',
 
   // This turns support on for https (currently not used).

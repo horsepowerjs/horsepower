@@ -1,6 +1,6 @@
-const { env } = require('@red5/server')
+const { env } = require('@horsepower/server')
 
-/** @type {import('@red5/server').DBSettings} */
+/** @type {import('@horsepower/server').DBSettings} */
 module.exports = {
   mysql: {
     default: true,

@@ -1,4 +1,4 @@
-/** @type {import('@red5/session').SessionSettings} */
+/** @type {import('@horsepower/session').SessionSettings} */
 module.exports = {
   // The type of storage to store the session data.
   // Note: Currently, only file storage is supported.
