@@ -14,7 +14,7 @@ It is recommended that you install the server via `@horsepower/cli`. This will d
 npm i -g @horsepower/cli
 
 cd ./Documents/www
-horsepower new <website-name>
+hp new <website-name>
 
 node ./<website-name>/index.js
 ```
