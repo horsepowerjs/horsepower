@@ -1,3 +1,4 @@
 node_modules
 link.sh
+package-lock.json
 .env
