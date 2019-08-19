@@ -9,7 +9,7 @@ module.exports = {
   port: parseInt(env('APP_PORT', '5000')),
 
   // This the name of the application.
-  name: env('APP_NAME', 'Red5'),
+  name: env('APP_NAME', 'Horse Power'),
 
   // This is the default locale for the application.
   // If the user has never been to the site before,

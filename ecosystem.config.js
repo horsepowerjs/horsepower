@@ -7,7 +7,7 @@ dotenv.config({ path: path.join(__dirname, '.env') })
 module.exports = {
   apps: [
     {
-      name: process.env.APP_NAME || 'Red5 Http Server',
+      name: process.env.APP_NAME || 'Horse Power Http Server',
       script: path.join(__dirname, 'index.js'),
       watch: [
         path.join(__dirname, 'app', '**/*.js'),
