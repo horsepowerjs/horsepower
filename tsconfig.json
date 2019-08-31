@@ -1,19 +1,6 @@
 {
   "compilerOptions": {
-    "target": "esnext",
     "module": "commonjs",
-    "moduleResolution": "node",
-    "declaration": true,
-    "strict": true,
-    "removeComments": false,
-    "inlineSourceMap": true,
-    "skipLibCheck": true,
-    "noImplicitAny": false,
-    "stripInternal": true
-  },
-  "exclude": [
-    "node_modules",
-    "lib",
-    "types"
-  ]
+    "target": "es2017"
+  }
 }

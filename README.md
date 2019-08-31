@@ -1,137 +1,129 @@
-# Contributing
+## Table of contents
 
-To contribute code to the red5 framework take the following steps:
+* [Installation](#installation) &ndash; Installing the horsepower http server
+* [Server setup](#server-setup) &ndash; Setting up a proxy server
+  * [Nginx](#nginx) &ndash; Setting up Nginx as a proxy server
+  * [Apache](#apache) &ndash; Setting up Apache as a proxy server
 
-1. Clone the repository
-2. Install the dependencies
-3. Run the linkage tool
-4. Build the packages
-5. Testing
-   * PM2
-   * Manual
+## Installation
 
-## Setting up the environment
+It is recommended that you install the server via `@horsepower/cli`. This will download the repository, install the node modules, and make all necessary adjustments.
 
-The following steps will get you on the right path to make changes and contribute to the framework. There are a few optional steps that will be marked as so.
-
-### Clone the repository
-
-Clone the repository to a folder of your choosing. If you plan on contributing to multiple red5 repositories, it is recommended to place them in a `red5` or such directory.
 
 ```bash
-# Optional commands
-mkdir red5
-cd red5
+npm i -g @horsepower/cli
 
-# Required commands
-git clone git@github.com:red5-server/framework.git
+cd ./Documents/www
+hp new <website-name>
+
+node ./<website-name>/index.js
 ```
 
-### Install the dependencies
+You can now access the server by going to http://127.0.0.1:5000 and you should be welcomed with a welcome page.
 
-Some npm dependencies are needed for building the framework, so here is where we will install them.
+## Server setup
+
+You probably want to setup your server so that when people visit your website they don't have to put an ip and port into their browser but instead an actual domain.
+
+These configurations use a proxy to listen to the port that the server is running on. Using a process manager is okay and recommended in order to keep your website up and running if you've run into some bad code that crashes the server.
+
+Based on the type of server you are using or want to use the configuration for each of these will look slightly different.
+
+### Nginx
+
+Nginx is a fast lightweight server that is easy to use on linux servers.
+
+First you will want to install and create a new configuration file:
 
 ```bash
-cd framework
-npm install
+# Install nginx if it hasn't already been installed
+sudo apt install nginx
+
+# Create a new configuration file
+vim /etc/nginx/sites-available/example.com
 ```
 
-### Run the linkage tool
+Within the configuration file add the following content, replacing `example.com` with your domain name and `5000` with the actual port that you are running the server on.
 
-Not all dependencies rely on one another, but during development we will just link everything together by running the linker.
+```conf
+server {
+  # Setup the domain name(s)
+  server_name example.com;
+  listen 80;
 
-```bash
-./link.sh
-```
-
-### Build the packages
-
-The packages can be built one of two ways:
-
-* A single build 
-* A watching build
-
-A single build will build all of the packages once and then exit, whereas a watching build will build all of the packages and watch for changes then rebuild individual packages only when they have changed.
-
-```bash
-# Runs a single build
-gulp build
-
-# Runs a build and watches for changes to individual packages
-gulp build:watch
-```
-
-### Testing
-
-The simplest way to test is to install the `@red5/cli` tool, this will download and install the red5 packages from [Github](https://github.com/red5-server/red5)
-
-```bash
-# Install the cli
-npm i -g @red5/cli
-
-# CD into the parent directory of a test project
-cd ~/Documents/www
-
-# Run the new command from red5
-# where "<website-name>" is the name of the new directory
-red5 new <website-name>
-cd <website-name>
-
-# Create links to the framework
-# We don't want to use the production versions here
-# These should have already been created when `./link.sh` was executed
-npm link @red5/router
-npm link @red5/session
-npm link @red5/storage
-npm link @red5/middleware
-npm link @red5/server
-npm link @red5/template
-npm link @red5/mysql
-```
-
-You may want to edit the `.env` file and if so do that now because it needs to be done before the server is started. Any changes to that file will require the server to be manually restarted.
-
-Once ready, you can run the server however you would like.
-
-#### PM2
-
-PM2 is a process manager that allows you to manage one or more processes. This will help us by allowing us to automatically restart the server in the background when the project files change. This way we don't need to manually do it ourselves every time we save/create/delete etc.
-
-The red5 install comes with a [PM2](https://www.npmjs.com/package/pm2) configuration file that is setup to watch directories. 
-
-
-We may want to add an additional watch path in the PM2 configuration file for development purposes to also watch for changes to the framework within the `node_modules` directory:
-
-```js
-module.exports = {
-  apps: [
-    {
-      watch: [
-        // Previously listed paths
-        path.join(__dirname, 'node_modules/@red5/*/lib/**/*.js')
-      ]
-    }
-  ]
+  # Setup the proxy
+  # This will forward all requests to the horsepower http server
+  # and then it will relay the servers response back to the client
+  location / {
+    proxy_pass http://127.0.0.1:5000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_cache_bypass $http_upgrade;
+  }
 }
 ```
 
-We can now install (if needed) and/or start the server via PM2.
+We will want to create a symbolic link to this file so that we can enable/disable this domain without deleting the file itself, and just add/remove the symbolic link.
 
 ```bash
-# Optional: If you don't have pm2 installed
-npm i -g pm2
+# CD to nginx "sites-enabled" directory
+cd /etc/nginx/sites-enabled
 
-# Start the pm2 server
-pm2 start ./ecosystem.config.js
-# Open the log file to view the errors and output
-pm2 log
+# Create the symbolic link
+ln -s ../sites-available/example.com ./example.com
 ```
 
-#### Manual
-
-Manual testing is fairly straight forward. You will just need to execute the file in the classic nodejs manner. Whenever you change a file you will need to manually restart the node server unlike a process manager.
+Finally we start both of the services and test the domain (assuming it has already propagated).
 
 ```bash
-cd <website-name>
-node ./index.js
+# Start the horsepower http server
+pm2 start ./ecosystem.config.js
+
+# Start the nginx service
+sudo service nginx start
+```
+
+### Apache
+
+Apache is a popular server that works well on all platforms though it isn't lightweight like Nginx.
+
+First we will start by installing apache if it hasn't already been installed, then we will create the configuration file.
+
+```bash
+# Install apache if it hasn't already been installed
+sudo apt install apache2
+
+vim /etc/apache2/sites-available/example.conf
+```
+
+So first we create a new virtual host, replacing `example.com` with your domain name and `5000` with the actual port that you are running the server on.
+
+```conf
+<VirtualHost *:80>
+  ServerName example.com
+
+  ProxyPass http://127.0.0.1:5000
+
+  ProxyPreserveHost On
+</VirtualHost>
+```
+
+You must also have the modules enabled within the master apache config file:
+
+```conf
+LoadModule proxy_module modules/mod_proxy.so
+LoadModule proxy_http_module modules/mod_proxy_http.so
+```
+
+Finally we start both of the services and test the domain (assuming it has already propagated).
+
+```bash
+# Start the horsepower http server
+pm2 start ./ecosystem.config.js
+
+# Start the apache service
+sudo service apache2 start
 ```

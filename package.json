@@ -1,30 +1,24 @@
 {
-    "name": "red5",
-    "version": "1.0.1",
-    "description": "",
-    "main": "index.js",
-    "scripts": {
-        "link": "sh ./scripts/link.sh",
-        "publish": "sh ./scripts/publish.sh",
-        "unlink": "sh ./scripts/unlink.sh",
-        "update": "sh ./scripts/update.sh",
-        "watch": "gulp build:watch"
-    },
-    "author": "",
-    "license": "ISC",
-    "devDependencies": {
-        "@types/gulp": "^4.0.6",
-        "@types/gulp-sourcemaps": "0.0.32",
-        "@types/gulp-typescript": "^2.13.0",
-        "@types/jsdom": "^12.2.4",
-        "@types/node": "^12.0.12",
-        "@types/vinyl": "^2.0.3",
-        "@types/vinyl-fs": "^2.4.11",
-        "gulp": "^4.0.2",
-        "gulp-sourcemaps": "^2.6.5",
-        "gulp-typescript": "^4.0.0",
-        "rimraf": "^2.6.3",
-        "typescript": "^3.5.3"
-    },
-    "dependencies": {}
+  "name": "horsepower",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./index.js",
+    "start:pm2": "pm2 start ./ecosystem.config.js",
+    "gulp:dev": "gulp build:watch",
+    "gulp:prod": "gulp build --production"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@horsepower/router": "^1.0.0",
+    "@horsepower/server": "^1.0.0",
+    "@horsepower/storage": "^1.0.0",
+    "dotenv": "^8.0.0"
+  },
+  "devDependencies": {
+    "@horsepower/pack": "^1.0.0",
+    "@types/node": "^11.13.17"
+  }
 }
