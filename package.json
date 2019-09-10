@@ -15,10 +15,10 @@
     "@horsepower/router": "^1.0.0",
     "@horsepower/server": "^1.0.0",
     "@horsepower/storage": "^1.0.0",
+    "@horsepower/template": "^1.0.0",
     "dotenv": "^8.0.0"
   },
   "devDependencies": {
-    "@horsepower/pack": "^1.0.0",
     "@types/node": "^11.13.17"
   }
 }
